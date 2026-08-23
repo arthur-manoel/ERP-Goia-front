@@ -9,17 +9,21 @@ export async function POST(request, { params }) {
     await connection.beginTransaction()
     const [[order]] = await connection.execute('SELECT id,numero FROM ordem_producao WHERE id=? AND id_empresa=? FOR UPDATE', [id, empresaId])
     if (!order) throw Object.assign(new Error('Ordem de produção inválida.'), { status: 404 })
-    const [opItems] = await connection.execute('SELECT id,quantidade FROM ordem_producao_item WHERE id_ordem_producao=?', [id])
+    const [opItems] = await connection.execute('SELECT id,id_produto,quantidade FROM ordem_producao_item WHERE id_ordem_producao=?', [id])
     const itemMap = new Map(opItems.map(item => [String(item.id), item]))
     const [rawProducts] = await connection.execute(`SELECT p.id,p.nome,p.unidade,COALESCE(pe.custo_atual,0) custo,
       COALESCE((SELECT SUM(e.quantidade-e.quantidade_reservada) FROM estoque e WHERE e.id_empresa=pe.id_empresa AND e.id_produto=p.id),0) disponivel
       FROM produtos p JOIN produto_empresa pe ON pe.id_produto=p.id WHERE pe.id_empresa=? AND p.permite_producao=0 AND p.permite_venda=0`, [empresaId])
     const rawMap = new Map(rawProducts.map(product => [String(product.id), product]))
+    const [recipeRows] = await connection.execute(`SELECT oi.id itemId,fti.id_produto_componente materiaPrimaId FROM ordem_producao_item oi
+      JOIN ficha_tecnica ft ON ft.id_produto=oi.id_produto AND ft.id_empresa=? AND ft.status='ATIVA'
+      JOIN ficha_tecnica_item fti ON fti.id_ficha_tecnica=ft.id WHERE oi.id_ordem_producao=?`, [empresaId, id])
+    const recipeKeys = new Set(recipeRows.map(row => `${row.itemId}:${row.materiaPrimaId}`))
     const linhas = []; const totais = new Map()
     for (const consumo of consumos) {
-      const opItem = itemMap.get(String(consumo.itemId)); const raw = rawMap.get(String(consumo.materiaPrimaId)); const perPiece = Number(consumo.porPeca)
-      if (!opItem || !raw || !(perPiece > 0)) throw Object.assign(new Error('Existe um consumo inválido.'), { status: 400 })
-      const needed = Number(opItem.quantidade) * perPiece
+      const opItem = itemMap.get(String(consumo.itemId)); const raw = rawMap.get(String(consumo.materiaPrimaId)); const needed = Number(consumo.quantidadeNecessaria)
+      if (!opItem || !raw || !(needed > 0) || !recipeKeys.has(`${opItem.id}:${raw.id}`)) throw Object.assign(new Error('Existe um consumo que não pertence à ficha técnica do produto.'), { status: 400 })
+      const perPiece = needed / Number(opItem.quantidade)
       linhas.push({ opItem, raw, perPiece, needed })
       totais.set(String(raw.id), (totais.get(String(raw.id)) || 0) + needed)
     }
@@ -55,6 +59,16 @@ export async function POST(request, { params }) {
         const raw = rawMap.get(rawId); const shortage = Math.max(0, needed - Number(raw.disponivel)); if (!(shortage > 0)) continue
         await connection.execute('INSERT INTO item_pedido_compra (id_pedido_compra,id_produto,quantidade,valor_unitario,valor_total) VALUES (?,?,?,?,?)', [purchase.insertId, rawId, shortage, Number(raw.custo), shortage * Number(raw.custo)])
       }
+      const [mirrored] = await connection.execute(`INSERT INTO compras
+        (id_empresa,id_local_estoque,id_fornecedor,id_ordem_producao,id_usuario,id_pedido_compra_legado,codigo,origem,status,data_emissao,observacao)
+        SELECT pc.id_empresa,COALESCE(op.id_local_estoque,(SELECT le.id FROM locais_estoque le WHERE le.id_empresa=pc.id_empresa AND le.status='ATIVO' ORDER BY le.id LIMIT 1)),
+          pc.id_fornecedor,pc.id_ordem_producao,pc.id_usuario,pc.id,pc.numero,'ORDEM_PRODUCAO','EMITIDA',pc.data_pedido,pc.observacao
+        FROM pedido_compra pc JOIN ordem_producao op ON op.id=pc.id_ordem_producao WHERE pc.id=?
+        ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id),status='EMITIDA',observacao=VALUES(observacao)`, [purchase.insertId])
+      const compraId = mirrored.insertId
+      await connection.execute('DELETE FROM compra_itens WHERE id_compra=?', [compraId])
+      await connection.execute(`INSERT INTO compra_itens (id_compra,id_produto,quantidade,valor_unitario,valor_total)
+        SELECT ?,id_produto,quantidade,valor_unitario,valor_total FROM item_pedido_compra WHERE id_pedido_compra=?`, [compraId,purchase.insertId])
     }
     await connection.execute('UPDATE ordem_producao SET status=? WHERE id=?', [hasShortage ? 'AGUARDANDO_MATERIAL' : 'LIBERADA', id])
     await connection.commit(); return NextResponse.json({ message: hasShortage ? 'Consumo salvo e pedido de compra gerado.' : 'Consumo salvo. Materiais suficientes.', pedidoCompra: purchaseNumber, faltante: hasShortage })

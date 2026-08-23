@@ -1,3 +1,6 @@
+import { redirect } from 'next/navigation'
+export default function Page(){redirect('/compras')}
+/*
 'use client'
 import PageHeader from '@/components/common/page-header'
 import DataTable from '@/components/common/data-table'
@@ -45,3 +48,4 @@ export default function PedidosCompraPage() {
     </div>
   )
 }
+*/

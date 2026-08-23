@@ -21,6 +21,9 @@ export async function POST(request) {
     const [result] = await connection.execute(`INSERT INTO ordem_producao
       (id_empresa,id_usuario,id_setor,numero,prioridade,quantidade_planejada,status,data_inicio,data_previsao)
       VALUES (?,?,?,?,?,?,?,?,?)`, [body.empresaId, users[0].id, body.setorId, body.numero.trim(), String(body.prioridade || 'NORMAL').toUpperCase(), 0, statusMap[String(body.status || '').toLowerCase()] || 'PLANEJADA', body.dataAbertura || new Date(), body.prazoConclusao || null])
+    await connection.execute(`INSERT INTO ordem_producao_movimentacao_setor
+      (id_ordem_producao,id_setor_origem,id_setor_destino,id_usuario_envio,id_usuario_recebimento,status,data_envio,data_recebimento,observacao)
+      VALUES (?,NULL,?,?,?,'ENTREGUE',NOW(),NOW(),'Setor inicial da ordem')`, [result.insertId, body.setorId, users[0].id, users[0].id])
     await connection.commit()
     return NextResponse.json({ id: String(result.insertId) }, { status: 201 })
   } catch (error) {
