@@ -5,7 +5,7 @@ import DataTable from '@/components/common/data-table'
 import StatusBadge from '@/components/common/status-badge'
 import QuickCreateDialog from '@/components/common/quick-create-dialog'
 import { formatBRL } from '@/lib/mock-data'
-import { Boxes, AlertTriangle, ArrowRightLeft, Trash2, Warehouse } from 'lucide-react'
+import { Boxes, AlertTriangle, ArrowRightLeft, Trash2, Warehouse, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -15,10 +15,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/lib/auth-context'
 import { useEntity } from '@/lib/data-store'
 import { toast } from 'sonner'
+import SimpleEditDialog from '@/components/common/simple-edit-dialog'
 
 export default function EstoquePage() {
   const { user } = useAuth(); const saldos = useEntity('estoque', user?.empresaId); const locais = useEntity('locais_estoque', user?.empresaId)
   const [estoqueSelecionado, setEstoqueSelecionado] = useState('__all__'); const [somenteAbaixo, setSomenteAbaixo] = useState(false); const [transferOpen, setTransferOpen] = useState(false)
+  const[editingLocal,setEditingLocal]=useState(null)
   const [transfer, setTransfer] = useState({ origemId: '', destinoId: '', produtoId: '', quantidade: 1 }); const [transferring, setTransferring] = useState(false)
   const rows = saldos.data.filter(row => estoqueSelecionado === '__all__' || String(row.estoqueId) === estoqueSelecionado).filter(row => !somenteAbaixo || Number(row.disponivel) <= Number(row.minimo))
   const produtosOrigem = useMemo(() => saldos.data.filter(row => String(row.estoqueId) === transfer.origemId && Number(row.disponivel) > 0), [saldos.data, transfer.origemId])
@@ -32,7 +34,7 @@ export default function EstoquePage() {
   ]
   const localColumns = [
     { key: 'nome', label: 'Estoque', render: row => <span className="font-medium">{row.nome}</span> }, { key: 'descricao', label: 'Descrição' }, { key: 'itens', label: 'Itens', cellClass: 'text-right' }, { key: 'status', label: 'Status', render: row => <StatusBadge status={row.status}/> },
-    { key: 'a', label: '', cellClass: 'text-right', filterable: false, render: row => <Button variant="ghost" size="icon" className="text-red-400" onClick={async()=>{if(confirm(`Excluir o estoque ${row.nome}?`)){try{await locais.remove(row.id);toast.success('Estoque excluído.')}catch(error){toast.error(error.message)}}}}><Trash2 className="h-4 w-4"/></Button> },
+    { key: 'a', label: '', cellClass: 'text-right', filterable: false, render: row => <div className="flex justify-end"><Button variant="ghost" size="icon" onClick={()=>setEditingLocal(row)}><Pencil className="h-4 w-4"/></Button><Button variant="ghost" size="icon" className="text-red-400" onClick={async()=>{if(confirm(`Excluir o estoque ${row.nome}?`)){try{await locais.remove(row.id);toast.success('Estoque excluído.')}catch(error){toast.error(error.message)}}}}><Trash2 className="h-4 w-4"/></Button></div> },
   ]
   const submitTransfer = async () => { setTransferring(true); try { const response = await fetch('/api/stock/transfer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...transfer,empresaId:user.empresaId,usuarioId:user.id})});const body=await response.json();if(!response.ok)throw new Error(body.error);await saldos.reload();setTransferOpen(false);setTransfer({origemId:'',destinoId:'',produtoId:'',quantidade:1});toast.success('Item transferido entre os estoques.')}catch(error){toast.error(error.message)}finally{setTransferring(false)} }
   return <div><PageHeader title="Estoque" description="Gerencie locais, visualize todos os itens e transfira saldos entre estoques." icon={Boxes}>
@@ -41,7 +43,7 @@ export default function EstoquePage() {
   </PageHeader><Tabs defaultValue="itens"><TabsList><TabsTrigger value="itens">Itens dos estoques</TabsTrigger><TabsTrigger value="locais">Estoques cadastrados ({locais.data.length})</TabsTrigger></TabsList>
     <TabsContent value="itens" className="space-y-3"><div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-3"><Warehouse className="h-4 w-4 text-muted-foreground"/><span className="text-sm font-medium">Visualizar:</span><Select value={estoqueSelecionado} onValueChange={setEstoqueSelecionado}><SelectTrigger className="w-64"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="__all__">Todos os estoques</SelectItem>{locais.data.map(local=><SelectItem key={local.id} value={local.id}>{local.nome}</SelectItem>)}</SelectContent></Select><Button variant="ghost" size="sm" onClick={()=>setEstoqueSelecionado('__all__')}>Ver todos os itens</Button></div>
       <DataTable data={rows} columns={columns} searchKeys={['produto','codigo','estoque']} rowClass={row=>Number(row.disponivel)===0?'bg-red-500/5':Number(row.disponivel)<=Number(row.minimo)?'bg-amber-500/5':''} extraFilter={<Button size="sm" variant={somenteAbaixo?'default':'outline'} onClick={()=>setSomenteAbaixo(v=>!v)} className={somenteAbaixo?'company-primary-bg text-primary-foreground':''}>Somente abaixo do mínimo</Button>}/></TabsContent>
-    <TabsContent value="locais"><DataTable data={locais.data} columns={localColumns} searchKeys={['nome','descricao','status']}/></TabsContent></Tabs>
+    <TabsContent value="locais"><DataTable data={locais.data} columns={localColumns} searchKeys={['nome','descricao','status']}/></TabsContent></Tabs><SimpleEditDialog item={editingLocal} title="Editar estoque" fields={[{name:'nome',label:'Nome',required:true},{name:'descricao',label:'Descrição',type:'textarea'},{name:'status',label:'Status',type:'switch'}]} onClose={()=>setEditingLocal(null)} onSave={async v=>{await locais.update(v.id,v);setEditingLocal(null);toast.success('Estoque atualizado.')}}/>
   <Dialog open={transferOpen} onOpenChange={setTransferOpen}><DialogContent><DialogHeader><DialogTitle>Transferir item entre estoques</DialogTitle><DialogDescription>A movimentação atualiza origem e destino e fica registrada no Kardex.</DialogDescription></DialogHeader><div className="space-y-4">
     <div className="space-y-1.5"><Label>Estoque de origem</Label><Select value={transfer.origemId} onValueChange={value=>setTransfer({origemId:value,destinoId:'',produtoId:'',quantidade:1})}><SelectTrigger><SelectValue placeholder="Selecione"/></SelectTrigger><SelectContent>{locais.data.filter(l=>l.status==='ativo').map(local=><SelectItem key={local.id} value={local.id}>{local.nome}</SelectItem>)}</SelectContent></Select></div>
     <div className="space-y-1.5"><Label>Produto</Label><Select value={transfer.produtoId} onValueChange={value=>setTransfer(prev=>({...prev,produtoId:value}))} disabled={!transfer.origemId}><SelectTrigger><SelectValue placeholder="Selecione um item com saldo"/></SelectTrigger><SelectContent>{produtosOrigem.map(row=><SelectItem key={row.produtoId} value={String(row.produtoId)}>{row.codigo} · {row.produto} (disponível: {row.disponivel})</SelectItem>)}</SelectContent></Select></div>

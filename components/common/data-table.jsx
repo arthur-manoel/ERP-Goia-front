@@ -31,6 +31,7 @@ export default function DataTable({ data = [], columns = [], searchable = true, 
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
   const currentPage = Math.min(page, pageCount)
   const pageData = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  const exportCsv=()=>{const visible=columns.filter(c=>!['a','actions'].includes(c.key));const escape=value=>`"${String(value??'').replace(/"/g,'""')}"`;const csv='\ufeff'+[visible.map(c=>escape(c.label)).join(';'),...filtered.map(row=>visible.map(c=>escape(row[c.key])).join(';'))].join('\r\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download=`exportacao-${new Date().toISOString().slice(0,10)}.csv`;link.click();URL.revokeObjectURL(url)}
 
   return (
     <div className="rounded-xl border border-border bg-card">
@@ -44,7 +45,7 @@ export default function DataTable({ data = [], columns = [], searchable = true, 
         <div className="flex items-center gap-2 md:ml-auto">
           {extraFilter}
           {filterableColumns.length > 0 && <Button variant={showFilters ? 'secondary' : 'outline'} size="sm" className="gap-2" onClick={() => setShowFilters(v => !v)}><ListFilter className="h-3.5 w-3.5"/>Filtros</Button>}
-          <Button variant="outline" size="sm" className="gap-2"><Download className="h-3.5 w-3.5" />Exportar CSV</Button>
+          <Button variant="outline" size="sm" className="gap-2" onClick={exportCsv} disabled={!filtered.length}><Download className="h-3.5 w-3.5" />Exportar CSV</Button>
         </div>
       </div>
       {showFilters && <div className="flex flex-wrap gap-2 p-3 border-b border-border bg-secondary/15">

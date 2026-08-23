@@ -20,11 +20,11 @@ const chartTooltip = {
 
 export default function DashboardPage() {
   const { user, empresa } = useAuth()
-  const { data: produtos } = useEntity('produtos', user?.empresaId)
-  const { data: notasFiscais } = useEntity('notas', user?.empresaId)
-  const { data: ordensProducao } = useEntity('ops', user?.empresaId)
-  const { data: vendas } = useEntity('vendas', user?.empresaId)
-  const { data: auditoria } = useEntity('auditoria', user?.empresaId)
+  const { data: produtos, reload: reloadProdutos } = useEntity('produtos', user?.empresaId)
+  const { data: notasFiscais, reload: reloadNotas } = useEntity('notas', user?.empresaId)
+  const { data: ordensProducao, reload: reloadOps } = useEntity('ops', user?.empresaId)
+  const { data: vendas, reload: reloadVendas } = useEntity('vendas', user?.empresaId)
+  const { data: auditoria, reload: reloadAuditoria } = useEntity('auditoria', user?.empresaId)
   const abaixoDoMinimo = produtos.filter(p => p.estoqueTotal <= p.minimo).length
   const nfPendentes = notasFiscais.filter(n => n.status === 'pendente').length
   const opAbertas = ordensProducao.filter(o => ['aberta', 'em_producao', 'aguardando_material'].includes(o.status)).length
@@ -47,8 +47,8 @@ export default function DashboardPage() {
           <p className="text-sm text-muted-foreground mt-1">Visão exclusiva de {empresa?.nomeFantasia || 'sua empresa'}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-2"><RefreshCw className="h-3.5 w-3.5" />Atualizar</Button>
-          <Button size="sm" className="gap-2 company-primary-bg text-primary-foreground hover:opacity-90"><Plus className="h-3.5 w-3.5" />Nova operação</Button>
+          <Button variant="outline" size="sm" className="gap-2" onClick={()=>Promise.all([reloadProdutos(),reloadNotas(),reloadOps(),reloadVendas(),reloadAuditoria()])}><RefreshCw className="h-3.5 w-3.5" />Atualizar</Button>
+          <Button size="sm" className="gap-2 company-primary-bg text-primary-foreground hover:opacity-90" onClick={()=>document.getElementById('atalhos-operacoes')?.scrollIntoView({behavior:'smooth'})}><Plus className="h-3.5 w-3.5" />Nova operação</Button>
         </div>
       </div>
 
@@ -214,7 +214,7 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <Card className="bg-card border-border">
+      <Card id="atalhos-operacoes" className="bg-card border-border scroll-mt-20">
         <CardHeader>
           <CardTitle className="text-base">Atalhos rápidos</CardTitle>
           <CardDescription>Comece uma nova operação em segundos</CardDescription>

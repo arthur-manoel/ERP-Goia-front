@@ -3,6 +3,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import * as seed from './mock-data'
+import { friendlyError } from './field-format'
 
 // Sementes iniciais para cada entidade (escopadas à empresa emp-1)
 const SEEDS = {
@@ -52,7 +53,7 @@ export function useEntity(name, empresaId) {
     if (!empresaId) return
     const response = await fetch(`/api/data/${name}?empresaId=${encodeURIComponent(empresaId)}`)
     const body = await response.json()
-    if (!response.ok) throw new Error(body.error)
+    if (!response.ok) throw new Error(friendlyError(body.error))
     ctx.setEntity(name, body)
     return body
   }, [name, empresaId])
@@ -64,7 +65,7 @@ export function useEntity(name, empresaId) {
     if (!empresaId && !data.empresaId) throw new Error('Empresa obrigatória para criar registros.')
     const response = await fetch(`/api/data/${name}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...data, empresaId: empresaId || data.empresaId }) })
     const item = await response.json()
-    if (!response.ok) throw new Error(item.error)
+    if (!response.ok) throw new Error(friendlyError(item.error))
     await reload()
     return item
   }
@@ -72,12 +73,12 @@ export function useEntity(name, empresaId) {
   const update = async (id, data) => {
     const response = await fetch(`/api/data/${name}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...data, id, empresaId }) })
     const result = await response.json()
-    if (!response.ok) throw new Error(result.error)
+    if (!response.ok) throw new Error(friendlyError(result.error))
     await reload(); return result
   }
   const remove = async (id) => {
     const response = await fetch(`/api/data/${name}?empresaId=${encodeURIComponent(empresaId)}&id=${encodeURIComponent(id)}`, { method: 'DELETE' })
-    if (!response.ok) { const body = await response.json(); throw new Error(body.error) }
+    if (!response.ok) { const body = await response.json(); throw new Error(friendlyError(body.error)) }
     await reload()
   }
   const get = (id) => filtered.find(x => x.id === id)

@@ -16,8 +16,8 @@ const QUERIES = {
     LEFT JOIN categorias ca ON ca.id=p.id_categoria
     LEFT JOIN cores co ON co.id=pe.id_cor LEFT JOIN tamanhos ta ON ta.id=pe.id_tamanho
     WHERE pe.id_empresa=? AND pe.status='ATIVO' GROUP BY p.id,pe.id,ca.nome,ca.id,co.nome,co.id,ta.nome,ta.id ORDER BY p.nome`,
-  categorias: `SELECT id,nome,descricao,LOWER(status) status FROM categorias WHERE id_empresa=? ORDER BY nome`,
-  cores: `SELECT id,nome,codigo_hex hex,LOWER(status) status FROM cores WHERE id_empresa=? ORDER BY nome`,
+  categorias: `SELECT id,nome,descricao,CASE WHEN status='ATIVA' THEN 'ativo' ELSE 'inativo' END status FROM categorias WHERE id_empresa=? ORDER BY nome`,
+  cores: `SELECT id,nome,codigo_hex hex,CASE WHEN status='ATIVA' THEN 'ativo' ELSE 'inativo' END status FROM cores WHERE id_empresa=? ORDER BY nome`,
   clientes: `SELECT id,nome_razao_social nome,cpf_cnpj documento,
     CASE WHEN LENGTH(REPLACE(REPLACE(REPLACE(cpf_cnpj,'.',''),'/',''),'-',''))=14 THEN 'PJ' ELSE 'PF' END tipo,
     email,telefone,cidade,LOWER(status) status FROM clientes WHERE id_empresa=? ORDER BY nome_razao_social`,
@@ -28,6 +28,7 @@ const QUERIES = {
     (SELECT GROUP_CONCAT(ps.recurso ORDER BY ps.recurso) FROM permissoes_setor ps WHERE ps.id_setor=s.id) permissoesCsv
     FROM setores s WHERE s.id_empresa=? ORDER BY s.nome`,
   tamanhos: `SELECT id,nome,descricao,ordem,LOWER(status) status FROM tamanhos WHERE id_empresa=? ORDER BY ordem,nome`,
+  tipos_setor: `SELECT id,nome,LOWER(status) status FROM tipos_setor WHERE id_empresa=? ORDER BY nome`,
   locais_estoque: `SELECT le.id,le.nome,le.descricao,LOWER(le.status) status,
     (SELECT COUNT(*) FROM estoque e WHERE e.id_local_estoque=le.id) itens
     FROM locais_estoque le WHERE le.id_empresa=? ORDER BY le.nome`,
@@ -129,11 +130,12 @@ async function createEntity(connection, entity, body, empresaId) {
   } else if (entity === 'fornecedores') {
     ;[result] = await connection.execute('INSERT INTO fornecedores (id_empresa,razao_social,nome_fantasia,cnpj,email,telefone,cidade,status) VALUES (?,?,?,?,?,?,?,?)', [empresaId, body.nome, body.nome, body.cnpj || null, body.contato || null, body.telefone || null, body.cidade || null, upper(body.status)])
   } else if (entity === 'setores') {
-    const typeMap = { armazenagem: 'ESTOQUE', produção: 'FABRICA', logistica: 'EXPEDICAO', logística: 'EXPEDICAO', vendas: 'LOJA', administrativo: 'OUTRO' }
-    ;[result] = await connection.execute('INSERT INTO setores (id_empresa,nome,tipo,descricao,status) VALUES (?,?,?,?,?)', [empresaId, body.nome, typeMap[String(body.tipo || '').toLowerCase()] || 'OUTRO', body.descricao || null, upper(body.status)])
+    ;[result] = await connection.execute('INSERT INTO setores (id_empresa,nome,tipo,descricao,status) VALUES (?,?,?,?,?)', [empresaId, body.nome, body.tipo || 'Outro', body.descricao || null, upper(body.status)])
     for (const recurso of (body.permissoes || [])) await connection.execute('INSERT INTO permissoes_setor (id_setor,recurso) VALUES (?,?)', [result.insertId, recurso])
   } else if (entity === 'tamanhos') {
     ;[result] = await connection.execute('INSERT INTO tamanhos (id_empresa,nome,descricao,ordem,status) VALUES (?,?,?,?,?)', [empresaId, body.nome, body.descricao || null, Number(body.ordem || 0), upper(body.status)])
+  } else if (entity === 'tipos_setor') {
+    ;[result] = await connection.execute('INSERT INTO tipos_setor (id_empresa,nome,status) VALUES (?,?,?)',[empresaId,body.nome,upper(body.status)])
   } else if (entity === 'locais_estoque') {
     ;[result] = await connection.execute('INSERT INTO locais_estoque (id_empresa,nome,descricao,status) VALUES (?,?,?,?)', [empresaId, body.nome, body.descricao || null, upper(body.status)])
   } else if (entity === 'usuarios') {
@@ -160,6 +162,7 @@ async function createEntity(connection, entity, body, empresaId) {
     const [product] = await connection.execute(`INSERT INTO produtos (id_tipo_produto,id_categoria,nome,codigo,descricao,unidade,controla_estoque,permite_venda,permite_compra,permite_producao,status) VALUES (?,?,?,?,?,?,?,?,?,?,?)`, [tipoId, categoryId, body.nome, body.codigo, body.descricao || null, body.unidade || 'UN', 1, body.tipo === 'produto_acabado' ? 1 : 0, body.tipo === 'materia_prima' ? 1 : 0, body.tipo === 'produto_acabado' ? 1 : 0, upper(body.status)])
     const corIds = Array.isArray(body.corIds) ? body.corIds : (body.corId ? [body.corId] : [])
     const tamanhoIds = Array.isArray(body.tamanhoIds) ? body.tamanhoIds : (body.tamanhoId ? [body.tamanhoId] : [])
+    for(const corId of corIds){const cor=await firstId(connection,"SELECT id FROM cores WHERE id=? AND id_empresa=? AND status='ATIVA'",[corId,empresaId]);if(!cor)throw Object.assign(new Error('Uma das cores selecionadas está inativa ou não pertence à empresa.'),{status:400})}
     ;[result] = await connection.execute('INSERT INTO produto_empresa (id_empresa,id_produto,id_cor,id_tamanho,codigo_interno,estoque_minimo,unidade_estoque_minimo,status) VALUES (?,?,?,?,?,?,?,?)', [empresaId, product.insertId, corIds[0] || null, tamanhoIds[0] || null, body.codigo, Number(body.minimo || 0), upper(body.unidadeMinimo || 'UNIDADE'), upper(body.status)])
     for (const corId of (corIds.length ? corIds : [null])) for (const tamanhoId of (tamanhoIds.length ? tamanhoIds : [null])) if (corId || tamanhoId) await connection.execute('INSERT INTO produto_variacoes (id_empresa,id_produto,id_cor,id_tamanho,status) VALUES (?,?,?,?,?)', [empresaId, product.insertId, corId, tamanhoId, upper(body.status)])
     if (body.tipo === 'produto_acabado') {
@@ -261,7 +264,7 @@ export async function POST(request, { params }) {
   } finally { connection.release() }
 }
 
-const DELETE_MAP = { categorias: 'categorias', cores: 'cores', tamanhos: 'tamanhos', locais_estoque: 'locais_estoque', clientes: 'clientes', fornecedores: 'fornecedores', setores: 'setores', requisicoes: 'requisicao_compra', pedidos: 'pedido_compra', notas: 'nota_fiscal', ops: 'ordem_producao', vendas: 'venda' }
+const DELETE_MAP = { categorias: 'categorias', cores: 'cores', tamanhos: 'tamanhos', tipos_setor:'tipos_setor', locais_estoque: 'locais_estoque', clientes: 'clientes', fornecedores: 'fornecedores', setores: 'setores', requisicoes: 'requisicao_compra', pedidos: 'pedido_compra', notas: 'nota_fiscal', ops: 'ordem_producao', vendas: 'venda' }
 export async function DELETE(request, { params }) {
   const connection = await getDb().getConnection()
   try {
@@ -295,21 +298,26 @@ export async function PUT(request, { params }) {
       const corIds = Array.isArray(body.corIds) ? body.corIds : []
       const tamanhoIds = Array.isArray(body.tamanhoIds) ? body.tamanhoIds : []
       const acabado = body.tipo === 'produto_acabado'
+      for(const corId of corIds){const allowed=await firstId(connection,`SELECT c.id FROM cores c WHERE c.id=? AND c.id_empresa=? AND (c.status='ATIVA' OR EXISTS (SELECT 1 FROM produto_variacoes pv WHERE pv.id_empresa=c.id_empresa AND pv.id_produto=? AND pv.id_cor=c.id))`,[corId,body.empresaId,body.id]);if(!allowed)throw Object.assign(new Error('Uma cor inativa não pode ser adicionada a este produto.'),{status:400})}
       await connection.execute(`UPDATE produtos SET id_categoria=?,nome=?,codigo=?,descricao=?,unidade=?,permite_venda=?,permite_compra=?,permite_producao=?,status=? WHERE id=?`, [acabado ? body.categoriaId || null : null, body.nome, body.codigo, body.descricao || null, body.unidade || 'UN', acabado ? 1 : 0, acabado ? 0 : 1, acabado ? 1 : 0, upper(body.status), body.id])
       await connection.execute(`UPDATE produto_empresa SET id_cor=?,id_tamanho=?,codigo_interno=?,estoque_minimo=?,unidade_estoque_minimo=?,status=? WHERE id_empresa=? AND id_produto=?`, [corIds[0] || null, tamanhoIds[0] || null, body.codigo, Number(body.minimo || 0), upper(body.unidadeMinimo || 'UNIDADE'), upper(body.status), body.empresaId, body.id])
       await connection.execute('DELETE FROM produto_variacoes WHERE id_empresa=? AND id_produto=?', [body.empresaId, body.id])
       for (const corId of (corIds.length ? corIds : [null])) for (const tamanhoId of (tamanhoIds.length ? tamanhoIds : [null])) if (corId || tamanhoId) await connection.execute('INSERT INTO produto_variacoes (id_empresa,id_produto,id_cor,id_tamanho,status) VALUES (?,?,?,?,\'ATIVO\')', [body.empresaId, body.id, corId, tamanhoId])
       await connection.commit()
     } else if (entity === 'categorias') {
-      await connection.beginTransaction(); await connection.execute('UPDATE categorias SET nome=?,descricao=?,status=? WHERE id=? AND id_empresa=?',[body.nome,body.descricao||null,upper(body.status),body.id,body.empresaId]); await connection.commit()
+      const status=String(body.status).toLowerCase().startsWith('inativ')?'INATIVA':'ATIVA';await connection.beginTransaction(); await connection.execute('UPDATE categorias SET nome=?,descricao=?,status=? WHERE id=? AND id_empresa=?',[body.nome,body.descricao||null,status,body.id,body.empresaId]); await connection.commit()
     } else if (entity === 'cores') {
-      await connection.beginTransaction(); await connection.execute('UPDATE cores SET nome=?,codigo_hex=?,status=? WHERE id=? AND id_empresa=?',[body.nome,body.hex||null,upper(body.status),body.id,body.empresaId]); await connection.commit()
+      const status=String(body.status).toLowerCase().startsWith('inativ')?'INATIVA':'ATIVA';await connection.beginTransaction(); await connection.execute('UPDATE cores SET nome=?,codigo_hex=?,status=? WHERE id=? AND id_empresa=?',[body.nome,body.hex||null,status,body.id,body.empresaId]); await connection.commit()
     } else if (entity === 'tamanhos') {
       await connection.beginTransaction(); await connection.execute('UPDATE tamanhos SET nome=?,descricao=?,ordem=?,status=? WHERE id=? AND id_empresa=?',[body.nome,body.descricao||null,Number(body.ordem||0),upper(body.status),body.id,body.empresaId]); await connection.commit()
     } else if (entity === 'fornecedores') {
       await connection.beginTransaction(); await connection.execute('UPDATE fornecedores SET razao_social=?,nome_fantasia=?,cnpj=?,cidade=?,email=?,telefone=?,status=? WHERE id=? AND id_empresa=?',[body.razaoSocial||body.nome,body.nome,body.cnpj||null,body.cidade||null,body.contato||null,body.telefone||null,upper(body.status),body.id,body.empresaId]); await connection.commit()
     } else if (entity === 'setores') {
       await connection.beginTransaction(); await connection.execute('UPDATE setores SET nome=?,tipo=?,descricao=?,status=? WHERE id=? AND id_empresa=?',[body.nome,body.tipo,body.descricao||null,upper(body.status),body.id,body.empresaId]); await connection.execute('DELETE FROM permissoes_setor WHERE id_setor=?',[body.id]); for(const recurso of (body.permissoes||[])) await connection.execute('INSERT INTO permissoes_setor (id_setor,recurso) VALUES (?,?)',[body.id,recurso]); await connection.commit()
+    } else if (entity === 'tipos_setor') {
+      await connection.beginTransaction();await connection.execute('UPDATE tipos_setor SET nome=?,status=? WHERE id=? AND id_empresa=?',[body.nome,upper(body.status),body.id,body.empresaId]);await connection.commit()
+    } else if (entity === 'locais_estoque') {
+      await connection.beginTransaction();await connection.execute('UPDATE locais_estoque SET nome=?,descricao=?,status=? WHERE id=? AND id_empresa=?',[body.nome,body.descricao||null,upper(body.status),body.id,body.empresaId]);await connection.commit()
     } else if (entity === 'usuarios') {
       await connection.beginTransaction(); const cargoId=await firstId(connection,"SELECT id FROM cargos WHERE id_empresa=? AND LOWER(nome) LIKE ? ORDER BY id LIMIT 1",[body.empresaId,body.perfil==='admin_empresa'?'%admin%':'%usu%']); if(!cargoId)throw Object.assign(new Error('Cargo compatível não encontrado.'),{status:400}); await connection.execute('UPDATE usuarios SET nome=?,email=? WHERE id=?',[body.nome,body.email,body.id]); await connection.execute('UPDATE usuario_empresa SET id_setor=?,id_cargo=?,nivel_acesso=?,status=? WHERE id_usuario=? AND id_empresa=?',[body.setorId||null,cargoId,body.perfil==='admin_empresa'?'EMPRESA':'USUARIO',upper(body.status),body.id,body.empresaId]); if(body.senha?.trim())await connection.execute('UPDATE usuarios SET senha_hash=? WHERE id=?',[await bcrypt.hash(body.senha,10),body.id]); await connection.commit()
     } else if (entity === 'notas') {

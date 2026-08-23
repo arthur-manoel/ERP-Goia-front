@@ -15,6 +15,7 @@ import SimpleEditDialog from '@/components/common/simple-edit-dialog'
 export default function SetoresPage() {
   const { user } = useAuth()
   const { data, create, update, remove } = useEntity('setores', user?.empresaId);const[editing,setEditing]=useState(null)
+  const tipos=useEntity('tipos_setor',user?.empresaId)
 
   const columns = [
     { key: 'nome', label: 'Setor', render: (r) => <div><div className="font-medium text-sm">{r.nome}</div><div className="text-[11px] text-muted-foreground">{r.tipo}</div></div> },
@@ -29,16 +30,17 @@ export default function SetoresPage() {
   return (
     <div>
       <PageHeader title="Setores" description="Setores operacionais da empresa." icon={Building2}>
-        <QuickCreateDialog label="Novo setor" defaults={{ tipo: 'Produção', status: 'ativo', usuarios: 0, itens: 0, permissoes: ['dashboard'] }} fields={[
+        <QuickCreateDialog label="Novo tipo" buttonClass="bg-secondary text-secondary-foreground hover:bg-secondary/80" defaults={{status:'ativo'}} fields={[{name:'nome',label:'Nome do tipo',required:true,placeholder:'Ex: Acabamento'}]} onCreate={v=>tipos.create({...v,status:'ativo'})}/>
+        <QuickCreateDialog label="Novo setor" defaults={{ tipo: '', status: 'ativo', usuarios: 0, itens: 0, permissoes: ['dashboard'] }} fields={[
           { name: 'nome', label: 'Nome do setor', required: true, placeholder: 'Ex: Corte' },
-          { name: 'tipo', label: 'Tipo', type: 'select', options: [{ value: 'Armazenagem', label: 'Armazenagem' }, { value: 'Produção', label: 'Produção' }, { value: 'Logística', label: 'Logística' }, { value: 'Vendas', label: 'Vendas' }, { value: 'Administrativo', label: 'Administrativo' }] },
+          { name: 'tipo', label: 'Tipo', type: 'select', required:true, options: tipos.data.map(x=>({value:x.nome,label:x.nome})), hint:'Agrupa setores com a mesma finalidade operacional.' },
           { name: 'descricao', label: 'Descrição', type: 'textarea' },
           { name: 'permissoes', label: 'Telas permitidas para o setor', type: 'multiselect', options: permissoesDeTela.map(p => ({ value: p.chave, label: p.nome })), required: true, hint: 'Usuários deste setor só poderão receber acesso às telas marcadas.' },
           { name: 'status', label: 'Ativo', type: 'switch' },
         ]} onCreate={(v) => create({ ...v, status: v.status === false ? 'inativo' : 'ativo' })} />
       </PageHeader>
       <DataTable data={data} columns={columns} searchKeys={['nome','tipo','descricao']} />
-      <SimpleEditDialog item={editing} title="Editar setor" fields={[{name:'nome',label:'Nome',required:true},{name:'tipo',label:'Tipo',type:'select',options:['Armazenagem','Produção','Logística','Vendas','Administrativo'].map(x=>({value:x,label:x}))},{name:'descricao',label:'Descrição',type:'textarea'},{name:'permissoes',label:'Telas permitidas',type:'multiselect',options:permissoesDeTela.map(p=>({value:p.chave,label:p.nome}))},{name:'status',label:'Status',type:'switch'}]} onClose={()=>setEditing(null)} onSave={async v=>{await update(v.id,v);setEditing(null);toast.success('Setor atualizado.')}}/>
+      <SimpleEditDialog item={editing} title="Editar setor" fields={[{name:'nome',label:'Nome',required:true},{name:'tipo',label:'Tipo',type:'select',options:tipos.data.map(x=>({value:x.nome,label:x.nome}))},{name:'descricao',label:'Descrição',type:'textarea'},{name:'permissoes',label:'Telas permitidas',type:'multiselect',options:permissoesDeTela.map(p=>({value:p.chave,label:p.nome}))},{name:'status',label:'Status',type:'switch'}]} onClose={()=>setEditing(null)} onSave={async v=>{await update(v.id,v);setEditing(null);toast.success('Setor atualizado.')}}/>
     </div>
   )
 }

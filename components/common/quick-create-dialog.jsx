@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
 import { Check, Plus } from 'lucide-react'
+import { formatField } from '@/lib/field-format'
 
 // Botão + Dialog genérico de criação para qualquer entidade CRUD.
 // fields: [{ name, label, type: 'text'|'email'|'number'|'currency'|'textarea'|'select'|'color'|'switch'|'password', options?, required? }]
@@ -85,7 +86,7 @@ export default function QuickCreateDialog({ label = 'Novo cadastro', fields, onC
                       ? <div className="flex items-center gap-3 h-10 rounded-md border border-border bg-secondary/40 px-3"><Switch checked={f[fld.name] ?? true} onCheckedChange={(v) => upd(fld.name, v)} /><span className="text-sm">{(f[fld.name] ?? true) ? 'Ativo' : 'Inativo'}</span></div>
                       : fld.type === 'color'
                         ? <div className="flex items-center gap-2"><input type="color" value={f[fld.name] || '#22c55e'} onChange={e => upd(fld.name, e.target.value)} className="h-10 w-14 rounded-md border border-border bg-transparent cursor-pointer" /><Input value={f[fld.name] || ''} onChange={e => upd(fld.name, e.target.value)} className="font-mono text-xs" /></div>
-                        : <Input type={fld.type || 'text'} value={f[fld.name] || ''} onChange={e => upd(fld.name, e.target.value)} placeholder={fld.placeholder} autoComplete="off" />}
+                        : <Input type={fld.type || 'text'} inputMode={['cnpj','cpf','documento','telefone'].some(x=>fld.name.toLowerCase().includes(x))?'numeric':undefined} value={f[fld.name] || ''} onChange={e => upd(fld.name, formatField(fld.name,fld.type,e.target.value))} placeholder={fld.placeholder} autoComplete="off" />}
                 {errors[fld.name] && <p className="text-xs text-red-400">{errors[fld.name]}</p>}
                 {fld.hint && <p className="text-[11px] text-muted-foreground">{fld.hint}</p>}
               </div>

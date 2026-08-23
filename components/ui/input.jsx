@@ -1,8 +1,11 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { formatField } from "@/lib/field-format"
 
-const Input = React.forwardRef(({ className, type, ...props }, ref) => {
+const Input = React.forwardRef(({ className, type, onChange, ...props }, ref) => {
+  const key = String(props.name || props.id || props.placeholder || '')
+  const formattedChange = onChange ? event => { event.target.value = formatField(key, type, event.target.value); onChange(event) } : undefined
   return (
     <input
       type={type}
@@ -11,6 +14,7 @@ const Input = React.forwardRef(({ className, type, ...props }, ref) => {
         className
       )}
       ref={ref}
+      onChange={formattedChange}
       {...props} />
   );
 })
