@@ -167,7 +167,12 @@ async function createEntity(connection, entity, body, empresaId) {
       const [ficha] = await connection.execute('INSERT INTO ficha_tecnica (id_empresa,id_produto,versao,status) VALUES (?,?,1,\'ATIVA\')', [empresaId, product.insertId])
       for (const insumo of body.insumos) {
         if (!insumo.produtoId || !(Number(insumo.quantidade) > 0)) throw Object.assign(new Error('Preencha todas as matérias-primas e quantidades.'), { status: 400 })
-        await connection.execute('INSERT INTO ficha_tecnica_item (id_ficha_tecnica,id_produto_componente,quantidade,unidade) SELECT ?,p.id,?,p.unidade FROM produtos p JOIN produto_empresa pe ON pe.id_produto=p.id WHERE p.id=? AND pe.id_empresa=? AND p.permite_compra=1', [ficha.insertId, Number(insumo.quantidade), insumo.produtoId, empresaId])
+        const [component] = await connection.execute(`INSERT INTO ficha_tecnica_item
+          (id_ficha_tecnica,id_produto_componente,quantidade,perda_percentual)
+          SELECT ?,p.id,?,0 FROM produtos p
+          JOIN produto_empresa pe ON pe.id_produto=p.id
+          WHERE p.id=? AND pe.id_empresa=? AND p.permite_compra=1`, [ficha.insertId, Number(insumo.quantidade), insumo.produtoId, empresaId])
+        if (!component.affectedRows) throw Object.assign(new Error('Uma das matérias-primas selecionadas é inválida.'), { status: 400 })
       }
     }
   } else if (entity === 'requisicoes') {

@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search, Download, ChevronLeft, ChevronRight, ListFilter, X } from 'lucide-react'
 import EmptyState from './empty-state'
 
-export default function DataTable({ data = [], columns = [], searchable = true, searchKeys = [], pageSize = 10, rowClass, extraFilter }) {
+export default function DataTable({ data = [], columns = [], searchable = true, searchKeys = [], pageSize = 10, rowClass, extraFilter, onRowClick }) {
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(1)
   const [showFilters, setShowFilters] = useState(false)
@@ -68,7 +68,7 @@ export default function DataTable({ data = [], columns = [], searchable = true, 
                 </TableCell>
               </TableRow>
             ) : pageData.map((row, i) => (
-              <TableRow key={row.id ?? i} className={`border-border ${rowClass ? rowClass(row) : ''}`}>
+              <TableRow key={row.id ?? i} onClick={() => onRowClick?.(row)} className={`border-border ${onRowClick ? 'cursor-pointer hover:bg-secondary/50' : ''} ${rowClass ? rowClass(row) : ''}`}>
                 {columns.map(c => (
                   <TableCell key={c.key} className={c.cellClass}>
                     {c.render ? c.render(row) : row[c.key]}
