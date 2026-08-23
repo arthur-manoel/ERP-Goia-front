@@ -1,0 +1,1 @@
+ALTER TABLE empresas MODIFY COLUMN logo_url LONGTEXT NULL;

@@ -1,0 +1,12 @@
+'use client'
+import { useParams,useRouter } from 'next/navigation'
+import PageHeader from '@/components/common/page-header'
+import StatusBadge from '@/components/common/status-badge'
+import { Avatar,AvatarFallback } from '@/components/ui/avatar'
+import { Card,CardContent,CardHeader,CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { useEntity } from '@/lib/data-store'
+import { useAuth } from '@/lib/auth-context'
+import { UserCog,ArrowLeft,Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
+export default function Usuario(){const{id}=useParams();const router=useRouter();const{user}=useAuth();const{data,remove}=useEntity('usuarios',user?.empresaId);const item=data.find(x=>String(x.id)===String(id));if(!item)return <p className="text-sm text-muted-foreground">Carregando usuário…</p>;const del=async()=>{if(String(item.id)===String(user.id))return toast.error('Você não pode remover o próprio acesso.');if(!confirm(`Excluir ${item.nome}?`))return;try{await remove(item.id);router.push('/usuarios')}catch(e){toast.error(e.message)}};return <div className="space-y-5"><PageHeader title={item.nome} description="Visualização completa do usuário" icon={UserCog}><StatusBadge status={item.status}/></PageHeader><Card><CardHeader><CardTitle className="flex items-center gap-3"><Avatar><AvatarFallback>{item.nome.split(' ').map(x=>x[0]).slice(0,2).join('')}</AvatarFallback></Avatar><span>{item.nome}</span></CardTitle></CardHeader><CardContent className="grid gap-5 md:grid-cols-2"><Info label="E-mail" value={item.email}/><Info label="Setor" value={item.setor}/><Info label="Perfil" value={item.perfil==='admin_empresa'?'Administrador da empresa':'Usuário comum'}/><Info label="Data de cadastro" value={item.cadastradoEm?new Date(item.cadastradoEm).toLocaleDateString('pt-BR'):'—'}/></CardContent></Card><div className="flex justify-between"><Button variant="outline" onClick={()=>router.push('/usuarios')}><ArrowLeft className="mr-2 h-4 w-4"/>Voltar</Button><Button variant="destructive" onClick={del}><Trash2 className="mr-2 h-4 w-4"/>Excluir usuário</Button></div></div>}function Info({label,value}){return <div><div className="text-xs uppercase text-muted-foreground">{label}</div><div className="mt-1 font-medium">{value||'—'}</div></div>}

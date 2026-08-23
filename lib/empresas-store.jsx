@@ -25,10 +25,13 @@ export function EmpresasProvider({ children }) {
     return nova
   }
   const update = async (id, data) => {
-    const response = await fetch('/api/empresas', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...data, id }) })
+    const atual = empresas.find(e => String(e.id) === String(id))
+    if (!atual) throw new Error('Empresa não encontrada.')
+    const completo = { ...atual, ...data, id }
+    const response = await fetch('/api/empresas', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(completo) })
     const result = await response.json()
     if (!response.ok) throw new Error(result.error)
-    setEmpresas(prev => prev.map(e => String(e.id) === String(id) ? { ...e, ...data } : e))
+    setEmpresas(prev => prev.map(e => String(e.id) === String(id) ? completo : e))
     return result
   }
   const remove = async (id) => {
@@ -37,7 +40,7 @@ export function EmpresasProvider({ children }) {
     setEmpresas(prev => prev.filter(e => String(e.id) !== String(id)))
   }
   const setStatus = async (id, status) => update(id, { ...get(id), status })
-  const get = (id) => empresas.find(e => e.id === id)
+  const get = (id) => empresas.find(e => String(e.id) === String(id))
   const reset = () => window.location.reload()
 
   return (

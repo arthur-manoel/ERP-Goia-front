@@ -18,8 +18,8 @@ export async function POST(request, { params }) {
       const [[product]] = await connection.execute(`SELECT p.id FROM produtos p JOIN produto_empresa pe ON pe.id_produto=p.id
         WHERE p.id=? AND pe.id_empresa=? AND pe.status='ATIVO' AND (p.permite_producao=1 OR p.permite_venda=1)`, [item.produtoId, empresaId])
       if (!product) throw Object.assign(new Error('A grade contém um produto acabado inválido.'), { status: 400 })
-      const [[variation]] = await connection.execute(`SELECT pv.id,t.nome tamanho FROM produto_variacoes pv JOIN tamanhos t ON t.id=pv.id_tamanho
-        WHERE pv.id_empresa=? AND pv.id_produto=? AND pv.id_cor=? AND pv.id_tamanho=? AND pv.status='ATIVO'`, [empresaId, item.produtoId, item.corId, item.tamanhoId])
+      const [[variation]] = await connection.execute(`SELECT pv.id,t.nome tamanho FROM produto_variacoes pv LEFT JOIN tamanhos t ON t.id=pv.id_tamanho
+        WHERE pv.id_empresa=? AND pv.id_produto=? AND pv.id_cor <=> ? AND pv.id_tamanho <=> ? AND pv.status='ATIVO'`, [empresaId, item.produtoId, item.corId || null, item.tamanhoId || null])
       if (!variation) throw Object.assign(new Error('A grade contém uma cor/tamanho não relacionada ao produto.'), { status: 400 })
       await connection.execute(`INSERT INTO ordem_producao_item (id_ordem_producao,id_produto,id_cor,id_tamanho,tamanho,quantidade,quantidade_produzida)
         VALUES (?,?,?,?,?,?,0)`, [id, item.produtoId, item.corId, item.tamanhoId, variation.tamanho, qty])

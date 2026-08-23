@@ -4,10 +4,10 @@ import { DataProvider } from '@/lib/data-store'
 
 export default function AppGroupLayout({ children }) {
   return (
-    <AppShell requireProfile="empresa">
-      <EmpresasProvider>
+    <EmpresasProvider>
+      <AppShell requireProfile="empresa">
         <DataProvider>{children}</DataProvider>
-      </EmpresasProvider>
-    </AppShell>
+      </AppShell>
+    </EmpresasProvider>
   )
 }

@@ -16,8 +16,7 @@ export default function Sidebar({ collapsed, onCollapse, onNavigate }) {
   const isAdminGeral = user?.perfil === 'admin_geral'
 
   // Consulta a empresa do usuário via store (pega logo atualizada em tempo real)
-  let empresa = null
-  try { empresa = useEmpresas().get(user?.empresaId) } catch { empresa = null }
+  const empresa = useEmpresas().get(user?.empresaId)
 
   const groups = navForUser(user)
   const doLogout = () => { logout(); router.push('/login') }

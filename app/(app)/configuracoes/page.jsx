@@ -85,11 +85,13 @@ export default function ConfiguracoesPage() {
     if (file.size > 2 * 1024 * 1024) { toast.error('Logo muito grande (máx. 2MB).'); return }
     try {
       const b64 = await fileToBase64(file)
-      if (empresa) update(empresa.id, { logo: b64 })
+      if (!empresa) throw new Error('Empresa não encontrada.')
+      await update(empresa.id, { logo: b64 })
+      e.target.value = ''
       toast.success('Logo atualizada!')
-    } catch { toast.error('Não foi possível carregar a imagem.') }
+    } catch (error) { toast.error(error.message || 'Não foi possível carregar a imagem.') }
   }
-  const removerLogo = () => { if (empresa) update(empresa.id, { logo: null }) }
+  const removerLogo = async () => { try { if (empresa) await update(empresa.id, { logo: null }); toast.success('Logo removida.') } catch(error) { toast.error(error.message) } }
 
   return (
     <div>

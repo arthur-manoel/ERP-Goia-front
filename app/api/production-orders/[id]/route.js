@@ -10,7 +10,7 @@ export async function GET(request, { params }) {
       s.id setorId,s.nome setor FROM ordem_producao o LEFT JOIN setores s ON s.id=o.id_setor WHERE o.id=? AND o.id_empresa=?`, [id, empresaId])
     if (!order) return NextResponse.json({ error: 'Ordem de produção não encontrada.' }, { status: 404 })
     const [items] = await getDb().execute(`SELECT oi.id,CAST(oi.id_produto AS CHAR) produtoId,p.nome produto,CAST(oi.id_cor AS CHAR) corId,c.nome cor,
-      CAST(oi.id_tamanho AS CHAR) tamanhoId,COALESCE(t.nome,oi.tamanho) tamanho,oi.quantidade
+      CAST(oi.id_tamanho AS CHAR) tamanhoId,COALESCE(t.nome,oi.tamanho) tamanho,oi.quantidade,oi.quantidade_produzida quantidadeProduzida
       FROM ordem_producao_item oi JOIN produtos p ON p.id=oi.id_produto LEFT JOIN cores c ON c.id=oi.id_cor LEFT JOIN tamanhos t ON t.id=oi.id_tamanho
       WHERE oi.id_ordem_producao=? ORDER BY c.nome,t.ordem,t.nome`, [id])
     const [consumption] = await getDb().execute(`SELECT calculo.id,calculo.itemId,calculo.materiaPrimaId,calculo.materiaPrima,calculo.unidade,calculo.porPeca,calculo.necessario,

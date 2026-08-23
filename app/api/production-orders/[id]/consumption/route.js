@@ -53,7 +53,7 @@ export async function POST(request, { params }) {
         WHERE NOT EXISTS (SELECT 1 FROM empresa_fornecedor WHERE id_empresa=? AND id_fornecedor=?)`, [empresaId, supplier.id, empresaId, supplier.id])
       purchaseNumber = `PC-AUTO-OP-${id}`
       const [purchase] = await connection.execute(`INSERT INTO pedido_compra (id_empresa,id_fornecedor,id_ordem_producao,id_usuario,numero,data_pedido,status,observacao)
-        VALUES (?,?,?,?,?,NOW(),'EMITIDO',?) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id),id_ordem_producao=VALUES(id_ordem_producao),status='EMITIDO',observacao=VALUES(observacao)`, [empresaId, supplier.id, id, user.id, purchaseNumber, `Compra automática por falta de material na OP ${order.numero}`])
+        VALUES (?,?,?,?,?,NOW(),'EMITIDO',?) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(pedido_compra.id),id_ordem_producao=VALUES(id_ordem_producao),status='EMITIDO',observacao=VALUES(observacao)`, [empresaId, supplier.id, id, user.id, purchaseNumber, `Compra automática por falta de material na OP ${order.numero}`])
       await connection.execute('DELETE FROM item_pedido_compra WHERE id_pedido_compra=?', [purchase.insertId])
       for (const [rawId, needed] of totais) {
         const raw = rawMap.get(rawId); const shortage = Math.max(0, needed - Number(raw.disponivel)); if (!(shortage > 0)) continue
@@ -64,7 +64,7 @@ export async function POST(request, { params }) {
         SELECT pc.id_empresa,COALESCE(op.id_local_estoque,(SELECT le.id FROM locais_estoque le WHERE le.id_empresa=pc.id_empresa AND le.status='ATIVO' ORDER BY le.id LIMIT 1)),
           pc.id_fornecedor,pc.id_ordem_producao,pc.id_usuario,pc.id,pc.numero,'ORDEM_PRODUCAO','EMITIDA',pc.data_pedido,pc.observacao
         FROM pedido_compra pc JOIN ordem_producao op ON op.id=pc.id_ordem_producao WHERE pc.id=?
-        ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id),status='EMITIDA',observacao=VALUES(observacao)`, [purchase.insertId])
+        ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(compras.id),status='EMITIDA',observacao=VALUES(observacao)`, [purchase.insertId])
       const compraId = mirrored.insertId
       await connection.execute('DELETE FROM compra_itens WHERE id_compra=?', [compraId])
       await connection.execute(`INSERT INTO compra_itens (id_compra,id_produto,quantidade,valor_unitario,valor_total)

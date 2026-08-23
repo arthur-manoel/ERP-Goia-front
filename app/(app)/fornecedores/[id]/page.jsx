@@ -1,0 +1,11 @@
+'use client'
+import { useParams,useRouter } from 'next/navigation'
+import PageHeader from '@/components/common/page-header'
+import StatusBadge from '@/components/common/status-badge'
+import { Card,CardContent,CardHeader,CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { useEntity } from '@/lib/data-store'
+import { useAuth } from '@/lib/auth-context'
+import { Truck,ArrowLeft,Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
+export default function Fornecedor(){const{id}=useParams();const router=useRouter();const{user}=useAuth();const{data,remove}=useEntity('fornecedores',user?.empresaId);const item=data.find(x=>String(x.id)===String(id));if(!item)return <p className="text-sm text-muted-foreground">Carregando fornecedor…</p>;const del=async()=>{if(!confirm(`Excluir ${item.nome}?`))return;try{await remove(item.id);router.push('/fornecedores')}catch(e){toast.error(e.message)}};return <div className="space-y-5"><PageHeader title={item.nome} description="Visualização completa do fornecedor" icon={Truck}><StatusBadge status={item.status}/></PageHeader><Card><CardHeader><CardTitle className="text-base">Dados do fornecedor</CardTitle></CardHeader><CardContent className="grid gap-5 md:grid-cols-2"><Info label="Nome fantasia" value={item.nome}/><Info label="Razão social" value={item.razaoSocial}/><Info label="CNPJ" value={item.cnpj}/><Info label="Cidade" value={item.cidade}/><Info label="E-mail" value={item.contato}/><Info label="Telefone" value={item.telefone}/></CardContent></Card><div className="flex justify-between"><Button variant="outline" onClick={()=>router.push('/fornecedores')}><ArrowLeft className="mr-2 h-4 w-4"/>Voltar</Button><Button variant="destructive" onClick={del}><Trash2 className="mr-2 h-4 w-4"/>Excluir fornecedor</Button></div></div>}function Info({label,value}){return <div><div className="text-xs uppercase text-muted-foreground">{label}</div><div className="mt-1 font-medium">{value||'—'}</div></div>}

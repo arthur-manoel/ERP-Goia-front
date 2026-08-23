@@ -1,10 +1,12 @@
 'use client'
 import PageHeader from '@/components/common/page-header'
 import DataTable from '@/components/common/data-table'
-import { auditoria } from '@/lib/mock-data'
 import { Shield } from 'lucide-react'
+import { useEntity } from '@/lib/data-store'
+import { useAuth } from '@/lib/auth-context'
 
 export default function AuditoriaPage() {
+  const {user}=useAuth();const{data:auditoria}=useEntity('auditoria',user?.empresaId)
   const columns = [
     { key: 'data', label: 'Data', cellClass: 'text-xs' },
     { key: 'usuario', label: 'Usuário', render: (r) => <div><div className="font-medium text-sm">{r.usuario}</div><div className="text-[11px] text-muted-foreground">{r.setor}</div></div> },

@@ -85,7 +85,7 @@ const QUERIES = {
     LEFT JOIN usuarios u ON u.id=m.id_usuario
     WHERE k.id_empresa=? ORDER BY k.data_movimentacao DESC`,
   auditoria: `SELECT a.id,DATE_FORMAT(a.data_evento,'%d/%m/%Y %H:%i') data,COALESCE(u.nome,'Sistema') usuario,
-    COALESCE(s.nome,'—') setor,a.tabela modulo,a.acao,CONCAT(a.tabela,' #',a.id_registro) registro,a.ip
+    COALESCE(s.nome,'—') setor,a.tabela modulo,a.acao,CONCAT(a.tabela,' #',a.id_registro) registro,COALESCE(a.ip,'—') ip,a.dados_novos detalhes
     FROM auditoria a LEFT JOIN usuarios u ON u.id=a.id_usuario
     LEFT JOIN usuario_empresa ue ON ue.id_usuario=u.id AND ue.id_empresa=a.id_empresa LEFT JOIN setores s ON s.id=ue.id_setor
     WHERE a.id_empresa=? ORDER BY a.data_evento DESC`,
@@ -300,6 +300,18 @@ export async function PUT(request, { params }) {
       await connection.execute('DELETE FROM produto_variacoes WHERE id_empresa=? AND id_produto=?', [body.empresaId, body.id])
       for (const corId of (corIds.length ? corIds : [null])) for (const tamanhoId of (tamanhoIds.length ? tamanhoIds : [null])) if (corId || tamanhoId) await connection.execute('INSERT INTO produto_variacoes (id_empresa,id_produto,id_cor,id_tamanho,status) VALUES (?,?,?,?,\'ATIVO\')', [body.empresaId, body.id, corId, tamanhoId])
       await connection.commit()
+    } else if (entity === 'categorias') {
+      await connection.beginTransaction(); await connection.execute('UPDATE categorias SET nome=?,descricao=?,status=? WHERE id=? AND id_empresa=?',[body.nome,body.descricao||null,upper(body.status),body.id,body.empresaId]); await connection.commit()
+    } else if (entity === 'cores') {
+      await connection.beginTransaction(); await connection.execute('UPDATE cores SET nome=?,codigo_hex=?,status=? WHERE id=? AND id_empresa=?',[body.nome,body.hex||null,upper(body.status),body.id,body.empresaId]); await connection.commit()
+    } else if (entity === 'tamanhos') {
+      await connection.beginTransaction(); await connection.execute('UPDATE tamanhos SET nome=?,descricao=?,ordem=?,status=? WHERE id=? AND id_empresa=?',[body.nome,body.descricao||null,Number(body.ordem||0),upper(body.status),body.id,body.empresaId]); await connection.commit()
+    } else if (entity === 'fornecedores') {
+      await connection.beginTransaction(); await connection.execute('UPDATE fornecedores SET razao_social=?,nome_fantasia=?,cnpj=?,cidade=?,email=?,telefone=?,status=? WHERE id=? AND id_empresa=?',[body.razaoSocial||body.nome,body.nome,body.cnpj||null,body.cidade||null,body.contato||null,body.telefone||null,upper(body.status),body.id,body.empresaId]); await connection.commit()
+    } else if (entity === 'setores') {
+      await connection.beginTransaction(); await connection.execute('UPDATE setores SET nome=?,tipo=?,descricao=?,status=? WHERE id=? AND id_empresa=?',[body.nome,body.tipo,body.descricao||null,upper(body.status),body.id,body.empresaId]); await connection.execute('DELETE FROM permissoes_setor WHERE id_setor=?',[body.id]); for(const recurso of (body.permissoes||[])) await connection.execute('INSERT INTO permissoes_setor (id_setor,recurso) VALUES (?,?)',[body.id,recurso]); await connection.commit()
+    } else if (entity === 'usuarios') {
+      await connection.beginTransaction(); const cargoId=await firstId(connection,"SELECT id FROM cargos WHERE id_empresa=? AND LOWER(nome) LIKE ? ORDER BY id LIMIT 1",[body.empresaId,body.perfil==='admin_empresa'?'%admin%':'%usu%']); if(!cargoId)throw Object.assign(new Error('Cargo compatível não encontrado.'),{status:400}); await connection.execute('UPDATE usuarios SET nome=?,email=? WHERE id=?',[body.nome,body.email,body.id]); await connection.execute('UPDATE usuario_empresa SET id_setor=?,id_cargo=?,nivel_acesso=?,status=? WHERE id_usuario=? AND id_empresa=?',[body.setorId||null,cargoId,body.perfil==='admin_empresa'?'EMPRESA':'USUARIO',upper(body.status),body.id,body.empresaId]); if(body.senha?.trim())await connection.execute('UPDATE usuarios SET senha_hash=? WHERE id=?',[await bcrypt.hash(body.senha,10),body.id]); await connection.commit()
     } else if (entity === 'notas') {
       await connection.beginTransaction()
       const localId = body.estoqueDestino ? await firstId(connection, 'SELECT id FROM locais_estoque WHERE id_empresa=? AND nome=?', [body.empresaId, body.estoqueDestino]) : null

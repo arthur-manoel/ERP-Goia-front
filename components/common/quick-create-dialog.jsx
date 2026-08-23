@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
-import { Plus } from 'lucide-react'
+import { Check, Plus } from 'lucide-react'
 
 // Botão + Dialog genérico de criação para qualquer entidade CRUD.
 // fields: [{ name, label, type: 'text'|'email'|'number'|'currency'|'textarea'|'select'|'color'|'switch'|'password', options?, required? }]
@@ -73,9 +73,12 @@ export default function QuickCreateDialog({ label = 'Novo cadastro', fields, onC
                       </Select>
                     : fld.type === 'multiselect'
                       ? <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-md border border-border p-3">
+                          {(fld.options || []).length === 0 && <p className="col-span-full text-xs text-muted-foreground">Nenhuma opção cadastrada.</p>}
                           {(fld.options || []).map(o => {
-                            const selected = Array.isArray(f[fld.name]) && f[fld.name].includes(o.value)
-                            return <label key={o.value} className="flex items-center gap-2 text-sm cursor-pointer"><Checkbox checked={selected} onCheckedChange={() => upd(fld.name, selected ? f[fld.name].filter(v => v !== o.value) : [...(f[fld.name] || []), o.value])}/>{o.label}</label>
+                            const value = String(o.value)
+                            const current = Array.isArray(f[fld.name]) ? f[fld.name].map(String) : []
+                            const selected = current.includes(value)
+                            return <button key={value} type="button" aria-pressed={selected} onClick={() => upd(fld.name, selected ? current.filter(v => v !== value) : [...current, value])} className={`flex min-h-10 items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors ${selected ? 'company-primary-bg border-transparent text-primary-foreground' : 'border-border bg-background hover:bg-secondary'}`}><span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${selected ? 'border-current' : 'border-muted-foreground'}`}>{selected && <Check className="h-3 w-3" />}</span>{o.label}</button>
                           })}
                         </div>
                     : fld.type === 'switch'
