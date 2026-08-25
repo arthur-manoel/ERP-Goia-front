@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import PageHeader from '@/components/common/page-header'
 import DataTable from '@/components/common/data-table'
 import StatusBadge from '@/components/common/status-badge'
@@ -20,6 +20,7 @@ import { toast } from 'sonner'
 
 export default function ProdutosPage() {
   const router = useRouter()
+  const searchParams=useSearchParams()
   const { user } = useAuth()
   const { data, create, update, remove } = useEntity('produtos', user?.empresaId)
   const { data: categorias } = useEntity('categorias', user?.empresaId)
@@ -27,8 +28,10 @@ export default function ProdutosPage() {
   const { data: tamanhos } = useEntity('tamanhos', user?.empresaId)
   const [tipoVisivel, setTipoVisivel] = useState('todos')
   const [editing, setEditing] = useState(null)
+  const closeEditing=()=>{setEditing(null);if(searchParams.get('editar'))router.replace('/produtos')}
   const materiasPrimas = data.filter(p => p.tipo === 'materia_prima')
   const produtosVisiveis = tipoVisivel === 'todos' ? data : data.filter(p => p.tipo === tipoVisivel)
+  useEffect(()=>{const editId=searchParams.get('editar');if(editId&&data.length){const item=data.find(x=>String(x.id)===String(editId));if(item)setEditing(item)}},[searchParams,data])
 
   const columns = [
     { key: 'nome', label: 'Nome', render: r => <span className="font-medium">{r.nome}</span> },
@@ -61,7 +64,7 @@ export default function ProdutosPage() {
     </PageHeader>
     <div className="mb-4 max-w-xs"><Label className="mb-1.5 block">Exibir produtos por tipo</Label><Select value={tipoVisivel} onValueChange={setTipoVisivel}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos</SelectItem><SelectItem value="materia_prima">Matérias-primas</SelectItem><SelectItem value="produto_acabado">Produtos acabados</SelectItem></SelectContent></Select></div>
     <DataTable data={produtosVisiveis} columns={columns} searchKeys={['nome']} onRowClick={produto => router.push(`/produtos/${produto.id}`)} />
-    <EditProductDialog product={editing} categorias={categorias} cores={cores} tamanhos={tamanhos} onClose={() => setEditing(null)} onSave={async values => { await update(editing.id, values); setEditing(null); toast.success('Produto atualizado.') }} />
+    <EditProductDialog product={editing} categorias={categorias} cores={cores} tamanhos={tamanhos} onClose={closeEditing} onSave={async values => { await update(editing.id, values); closeEditing(); toast.success('Produto atualizado.') }} />
   </div>
 }
 

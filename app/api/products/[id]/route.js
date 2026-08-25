@@ -10,7 +10,7 @@ export async function GET(request, { params }) {
     const [[produto]] = await getDb().execute(`SELECT p.id,p.nome,COALESCE(pe.codigo_interno,p.codigo) codigo,p.descricao,p.unidade,
       CASE WHEN p.permite_producao=1 OR p.permite_venda=1 THEN 'produto_acabado' ELSE 'materia_prima' END tipo,
       ca.nome categoria,LOWER(pe.status) status,pe.estoque_minimo minimo,LOWER(pe.unidade_estoque_minimo) unidadeMinimo,
-      pe.preco_venda precoVenda,pe.custo_atual custoAtual,COALESCE(pe.preco_venda,pe.custo_atual,0) valorUnitario,
+      pe.preco_venda precoVenda,pe.custo_atual custoAtual,CASE WHEN p.permite_producao=1 OR p.permite_venda=1 THEN COALESCE((SELECT SUM(fti.quantidade*COALESCE(cpe.custo_atual,0)) FROM ficha_tecnica ft JOIN ficha_tecnica_item fti ON fti.id_ficha_tecnica=ft.id JOIN produto_empresa cpe ON cpe.id_produto=fti.id_produto_componente AND cpe.id_empresa=ft.id_empresa WHERE ft.id_empresa=pe.id_empresa AND ft.id_produto=p.id AND ft.status='ATIVA' AND ft.versao=(SELECT MAX(ft2.versao) FROM ficha_tecnica ft2 WHERE ft2.id_empresa=ft.id_empresa AND ft2.id_produto=ft.id_produto AND ft2.status='ATIVA')),0) ELSE COALESCE(pe.custo_atual,0) END valorUnitario,
       pe.estoque_maximo maximo,p.controla_estoque controlaEstoque,p.permite_compra permiteCompra,
       p.permite_venda permiteVenda,p.permite_producao permiteProducao,DATE_FORMAT(p.data_cadastro,'%d/%m/%Y %H:%i') cadastradoEm,
       COALESCE(SUM(e.quantidade),0) estoqueTotal,COALESCE(SUM(e.quantidade_reservada),0) reservado

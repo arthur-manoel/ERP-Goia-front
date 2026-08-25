@@ -53,7 +53,7 @@ export default function Header({ onOpenMobile, breadcrumb }) {
                   : stockAlerts.length === 0 ? <div className="p-4 text-xs text-muted-foreground">Nenhum item abaixo do estoque mínimo.</div>
                   : stockAlerts.map(item => <button key={item.id} onClick={() => router.push('/alertas-estoque')} className="w-full px-4 py-3 text-left border-b border-border/60 hover:bg-secondary/50 flex gap-3">
                       <PackageX className="h-4 w-4 mt-0.5 text-red-400 shrink-0" />
-                      <span className="min-w-0"><span className="block text-sm font-medium truncate">{item.produto}</span><span className="block text-[11px] text-muted-foreground">{item.estoque} · disponível {item.disponivel} / mínimo {item.minimo}</span></span>
+                      <span className="min-w-0"><span className="block text-sm font-medium truncate">{item.produto}</span><span className="block text-[11px] text-muted-foreground">{item.estoque} · disponível {Number(item.disponivel || 0).toLocaleString('pt-BR', { maximumFractionDigits: 3 })} / mínimo {Number(item.minimo || 0).toLocaleString('pt-BR', { maximumFractionDigits: 3 })}</span></span>
                     </button>)}
               </div>
             </PopoverContent>

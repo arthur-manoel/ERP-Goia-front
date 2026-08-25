@@ -14,7 +14,7 @@ export default function DataTable({ data = [], columns = [], searchable = true, 
   const [columnFilters, setColumnFilters] = useState({})
 
   const filterableColumns = useMemo(() => columns.filter(column => {
-    if (column.filterable === false || ['a', 'actions'].includes(column.key)) return false
+    if (column.filterable !== true || ['a', 'actions'].includes(column.key)) return false
     return data.some(row => row[column.key] !== null && row[column.key] !== undefined && typeof row[column.key] !== 'object')
   }), [columns, data])
   const optionsFor = key => Array.from(new Set(data.map(row => String(row[key] ?? '')).filter(Boolean))).sort((a,b)=>a.localeCompare(b, 'pt-BR', { numeric: true }))
@@ -72,7 +72,7 @@ export default function DataTable({ data = [], columns = [], searchable = true, 
               <TableRow key={row.id ?? i} onClick={() => onRowClick?.(row)} className={`border-border ${onRowClick ? 'cursor-pointer hover:bg-secondary/50' : ''} ${rowClass ? rowClass(row) : ''}`}>
                 {columns.map(c => (
                   <TableCell key={c.key} className={c.cellClass}>
-                    {c.render ? c.render(row) : row[c.key]}
+                    {c.render ? c.render(row) : formatCell(row[c.key])}
                   </TableCell>
                 ))}
               </TableRow>
@@ -95,3 +95,5 @@ export default function DataTable({ data = [], columns = [], searchable = true, 
     </div>
   )
 }
+
+function formatCell(value){if(typeof value==='string'&&/^-?\d+\.\d{3,}$/.test(value)){const number=Number(value);return Number.isFinite(number)?number.toLocaleString('pt-BR',{maximumFractionDigits:3}):value}return value}

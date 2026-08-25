@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import StatusBadge from '@/components/common/status-badge'
 import { useAuth } from '@/lib/auth-context'
 import { formatBRL } from '@/lib/mock-data'
-import { ArrowLeft, Package } from 'lucide-react'
+import { ArrowLeft, Package, Pencil } from 'lucide-react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 const tipoNome = tipo => tipo === 'materia_prima' ? 'Matéria-prima' : 'Produto acabado'
@@ -37,6 +37,7 @@ export default function DetalheProduto() {
 
   return <div className="space-y-5">
     <PageHeader title={produto.nome} description={`${tipoNome(produto.tipo)} · Código ${produto.codigo}`} icon={Package}>
+      <Button onClick={() => router.push(`/produtos?editar=${produto.id}`)}><Pencil className="mr-2 h-4 w-4" />Editar produto</Button>
       <Button variant="outline" onClick={() => router.push('/produtos')}><ArrowLeft className="mr-2 h-4 w-4" />Voltar aos produtos</Button>
     </PageHeader>
 

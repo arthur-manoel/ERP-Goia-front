@@ -6,7 +6,7 @@ const QUERIES = {
   produtos: `SELECT p.id, p.nome, COALESCE(pe.codigo_interno,p.codigo) codigo, p.descricao, p.unidade,
     CASE WHEN p.permite_producao=1 OR p.permite_venda=1 THEN 'produto_acabado' ELSE 'materia_prima' END tipo,
     LOWER(pe.status) status, COALESCE(SUM(es.quantidade),0) estoqueTotal,COALESCE(pe.estoque_minimo,0) minimo,LOWER(pe.unidade_estoque_minimo) unidadeMinimo,
-    COALESCE(pe.preco_venda,pe.custo_atual,0) valorUnitario, ca.nome categoria, ca.id categoriaId,
+    CASE WHEN p.permite_producao=1 OR p.permite_venda=1 THEN COALESCE((SELECT SUM(fti.quantidade*COALESCE(cpe.custo_atual,0)) FROM ficha_tecnica ft JOIN ficha_tecnica_item fti ON fti.id_ficha_tecnica=ft.id JOIN produto_empresa cpe ON cpe.id_produto=fti.id_produto_componente AND cpe.id_empresa=ft.id_empresa WHERE ft.id_empresa=pe.id_empresa AND ft.id_produto=p.id AND ft.status='ATIVA' AND ft.versao=(SELECT MAX(ft2.versao) FROM ficha_tecnica ft2 WHERE ft2.id_empresa=ft.id_empresa AND ft2.id_produto=ft.id_produto AND ft2.status='ATIVA')),0) ELSE COALESCE(pe.custo_atual,0) END valorUnitario, ca.nome categoria, ca.id categoriaId,
     co.nome cor, co.id corId, ta.nome tamanho, ta.id tamanhoId,
     (SELECT COALESCE(JSON_ARRAYAGG(JSON_OBJECT('id',pv.id,'corId',CAST(pv.id_cor AS CHAR),'cor',vc.nome,'tamanhoId',CAST(pv.id_tamanho AS CHAR),'tamanho',vt.nome)),JSON_ARRAY())
       FROM produto_variacoes pv LEFT JOIN cores vc ON vc.id=pv.id_cor LEFT JOIN tamanhos vt ON vt.id=pv.id_tamanho
@@ -70,7 +70,7 @@ const QUERIES = {
     COUNT(i.id) itens,v.valor_total valor,LOWER(v.status) status
     FROM venda v JOIN clientes c ON c.id=v.id_cliente LEFT JOIN item_venda i ON i.id_venda=v.id
     WHERE v.id_empresa=? GROUP BY v.id,c.nome_razao_social ORDER BY v.data_venda DESC`,
-  estoque: `SELECT es.id,es.id_produto produtoId,es.id_local_estoque estoqueId,p.nome produto,COALESCE(pe.codigo_interno,p.codigo) codigo,le.nome estoque,
+  estoque: `SELECT es.id,es.id_produto produtoId,es.id_local_estoque estoqueId,p.nome produto,COALESCE(pe.codigo_interno,p.codigo) codigo,le.nome estoque,CASE WHEN p.permite_producao=1 OR p.permite_venda=1 THEN 'produto_acabado' ELSE 'materia_prima' END tipo,
     es.quantidade total,es.quantidade_reservada reservado,(es.quantidade-es.quantidade_reservada) disponivel,
     COALESCE(pe.estoque_minimo,0) minimo,LOWER(pe.unidade_estoque_minimo) unidadeMinimo,COALESCE(pe.custo_atual,0) valorUnitario,COALESCE(es.quantidade*pe.custo_atual,0) valorTotal
     FROM estoque es JOIN produtos p ON p.id=es.id_produto LEFT JOIN locais_estoque le ON le.id=es.id_local_estoque

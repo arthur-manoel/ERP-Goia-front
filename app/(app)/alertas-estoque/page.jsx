@@ -25,7 +25,7 @@ export default function AlertasEstoquePage() {
                 <AlertTriangle className={`h-5 w-5 ${Number(p.disponivel) === 0 ? 'text-red-400' : 'text-amber-400'}`} />
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-                <div><div className="text-[10px] text-muted-foreground uppercase">Atual</div><div className={`text-lg font-semibold ${Number(p.disponivel) === 0 ? 'text-red-400' : 'text-amber-400'}`}>{p.disponivel}</div></div>
+                <div><div className="text-[10px] text-muted-foreground uppercase">Atual</div><div className={`text-lg font-semibold ${Number(p.disponivel) === 0 ? 'text-red-400' : 'text-amber-400'}`}>{Number(p.disponivel || 0).toLocaleString('pt-BR', { maximumFractionDigits: 3 })}</div></div>
                 <div><div className="text-[10px] text-muted-foreground uppercase">Mínimo</div><div className="text-lg font-semibold">{p.minimo}</div></div>
                 <div><div className="text-[10px] text-muted-foreground uppercase">Valor</div><div className="text-sm font-semibold">{formatBRL(p.valorTotal)}</div></div>
               </div>

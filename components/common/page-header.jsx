@@ -1,8 +1,11 @@
 'use client'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { ArrowLeft } from 'lucide-react'
 
 export default function PageHeader({ title, description, action, actionHref, onAction, icon: Icon, children }) {
+  const pathname=usePathname();const compraDetail=/^\/compras\/[^/]+$/.test(pathname||'')
   return (
     <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
       <div className="min-w-0">
@@ -13,6 +16,7 @@ export default function PageHeader({ title, description, action, actionHref, onA
         {description && <p className="text-sm text-muted-foreground mt-1 max-w-2xl">{description}</p>}
       </div>
       <div className="flex items-center gap-2">
+        {compraDetail&&<Button asChild variant="outline"><Link href="/compras"><ArrowLeft className="mr-2 h-4 w-4"/>Voltar às compras</Link></Button>}
         {children}
         {action && actionHref && (
           <Link href={actionHref}>
