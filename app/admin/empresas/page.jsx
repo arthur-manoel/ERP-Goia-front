@@ -103,7 +103,7 @@ export default function AdminEmpresasPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setToDelete(null)}>Cancelar</Button>
             <Button disabled={confirmText !== expected}
-              onClick={() => { remove(toDelete.id); toast.success(`${toDelete.nomeFantasia} excluída.`); setToDelete(null) }}
+              onClick={async () => { try { await remove(toDelete.id); toast.success(`${toDelete.nomeFantasia} excluída.`); setToDelete(null) } catch (error) { toast.error(error.message || 'Esta empresa possui registros vinculados e não pode ser excluída.') } }}
               className="bg-red-500 hover:bg-red-600 text-white disabled:opacity-40">
               Excluir permanentemente
             </Button>

@@ -6,7 +6,7 @@ import DataTable from '@/components/common/data-table'
 import StatusBadge from '@/components/common/status-badge'
 import QuickCreateDialog from '@/components/common/quick-create-dialog'
 import { formatBRL } from '@/lib/mock-data'
-import { Boxes, AlertTriangle, ArrowRightLeft, Trash2, Warehouse, Pencil } from 'lucide-react'
+import { Boxes, AlertTriangle, ArrowRightLeft, ClipboardCheck, Trash2, Warehouse, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,7 +19,7 @@ import { toast } from 'sonner'
 import SimpleEditDialog from '@/components/common/simple-edit-dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
-const qtd=value=>Number(value||0).toLocaleString('pt-BR',{maximumFractionDigits:3})
+const qtd=value=>Number(value||0).toLocaleString('pt-BR',{maximumFractionDigits:2})
 
 export default function EstoquePage() {
   const { user } = useAuth(); const saldos = useEntity('estoque', user?.empresaId); const locais = useEntity('locais_estoque', user?.empresaId)
@@ -29,6 +29,8 @@ export default function EstoquePage() {
   const [transfer, setTransfer] = useState({ origemId: '', destinoId: '', produtoId: '', quantidade: 1 }); const [transferring, setTransferring] = useState(false)
   const rows = saldos.data.filter(row => estoqueSelecionado === '__all__' || String(row.estoqueId) === estoqueSelecionado).filter(row=>tipoSelecionado==='__all__'||row.tipo===tipoSelecionado).filter(row => !somenteAbaixo || Number(row.disponivel) <= Number(row.minimo))
   const produtosOrigem = useMemo(() => saldos.data.filter(row => String(row.estoqueId) === transfer.origemId && Number(row.disponivel) > 0), [saldos.data, transfer.origemId])
+  const produtoTransferido = produtosOrigem.find(row => String(row.produtoId) === String(transfer.produtoId))
+  const transferenciaInteira = produtoTransferido?.tipo === 'produto_acabado'
   const columns = [
     { key: 'produto', label: 'Produto', render: row => <Link href={`/produtos/${row.produtoId}`} className="group block rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"><div className="font-medium text-sm text-primary group-hover:underline">{row.produto}</div><div className="text-[11px] text-muted-foreground font-mono">{row.codigo}</div></Link> }, { key: 'estoque', label: 'Estoque' },
     { key: 'total', label: 'Total', cellClass: 'text-right',render:row=>qtd(row.total) }, { key: 'reservado', label: 'Reservado', cellClass: 'text-right',render:row=>qtd(row.reservado) },
@@ -43,6 +45,7 @@ export default function EstoquePage() {
   ]
   const submitTransfer = async () => { setTransferring(true); try { const response = await fetch('/api/stock/transfer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...transfer,empresaId:user.empresaId,usuarioId:user.id})});const body=await response.json();if(!response.ok)throw new Error(body.error);await saldos.reload();setTransferOpen(false);setTransfer({origemId:'',destinoId:'',produtoId:'',quantidade:1});toast.success('Item transferido entre os estoques.')}catch(error){toast.error(error.message)}finally{setTransferring(false)} }
   return <div><PageHeader title="Estoque" description="Gerencie locais, visualize todos os itens e transfira saldos entre estoques." icon={Boxes}>
+    <Button asChild variant="outline" className="gap-2"><Link href="/estoque/balanco"><ClipboardCheck className="h-4 w-4"/>Balanço de estoque</Link></Button>
     <Button variant="outline" className="gap-2" disabled={locais.data.length<2||saldos.data.length===0} onClick={()=>setTransferOpen(true)}><ArrowRightLeft className="h-4 w-4"/>Transferir item</Button>
     <QuickCreateDialog label="Novo estoque" defaults={{status:'ativo'}} fields={[{name:'nome',label:'Nome do estoque',required:true},{name:'descricao',label:'Descrição',type:'textarea'},{name:'status',label:'Ativo',type:'switch'}]} onCreate={value=>locais.create({...value,status:value.status===false?'inativo':'ativo'})}/>
   </PageHeader><Tabs defaultValue="itens"><TabsList><TabsTrigger value="itens">Itens dos estoques</TabsTrigger><TabsTrigger value="locais">Estoques cadastrados ({locais.data.length})</TabsTrigger></TabsList>
@@ -53,6 +56,6 @@ export default function EstoquePage() {
     <div className="space-y-1.5"><Label>Estoque de origem</Label><Select value={transfer.origemId} onValueChange={value=>setTransfer({origemId:value,destinoId:'',produtoId:'',quantidade:1})}><SelectTrigger><SelectValue placeholder="Selecione"/></SelectTrigger><SelectContent>{locais.data.filter(l=>l.status==='ativo').map(local=><SelectItem key={local.id} value={local.id}>{local.nome}</SelectItem>)}</SelectContent></Select></div>
     <div className="space-y-1.5"><Label>Produto</Label><Select value={transfer.produtoId} onValueChange={value=>setTransfer(prev=>({...prev,produtoId:value}))} disabled={!transfer.origemId}><SelectTrigger><SelectValue placeholder="Selecione um item com saldo"/></SelectTrigger><SelectContent>{produtosOrigem.map(row=><SelectItem key={row.produtoId} value={String(row.produtoId)}>{row.codigo} · {row.produto} (disponível: {qtd(row.disponivel)})</SelectItem>)}</SelectContent></Select></div>
     <div className="space-y-1.5"><Label>Estoque de destino</Label><Select value={transfer.destinoId} onValueChange={value=>setTransfer(prev=>({...prev,destinoId:value}))} disabled={!transfer.origemId}><SelectTrigger><SelectValue placeholder="Selecione"/></SelectTrigger><SelectContent>{locais.data.filter(local=>local.status==='ativo'&&local.id!==transfer.origemId).map(local=><SelectItem key={local.id} value={local.id}>{local.nome}</SelectItem>)}</SelectContent></Select></div>
-    <div className="space-y-1.5"><Label>Quantidade</Label><Input type="number" min="0.001" step="0.001" value={transfer.quantidade} onChange={event=>setTransfer(prev=>({...prev,quantidade:event.target.value}))}/></div></div>
+    <div className="space-y-1.5"><Label>Quantidade</Label><Input type="number" min={transferenciaInteira?'1':'0.001'} step={transferenciaInteira?'1':'0.001'} value={transfer.quantidade} onChange={event=>setTransfer(prev=>({...prev,quantidade:event.target.value}))}/>{transferenciaInteira&&<p className="text-xs text-muted-foreground">Produtos acabados são movimentados somente em peças inteiras.</p>}</div></div>
     <DialogFooter><Button variant="outline" onClick={()=>setTransferOpen(false)}>Cancelar</Button><Button onClick={submitTransfer} disabled={transferring||!transfer.origemId||!transfer.destinoId||!transfer.produtoId}>{transferring?'Transferindo…':'Confirmar transferência'}</Button></DialogFooter></DialogContent></Dialog></div>
 }

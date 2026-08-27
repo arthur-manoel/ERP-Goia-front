@@ -47,20 +47,19 @@ export default function ProdutosPage() {
 
   return <div>
     <PageHeader title="Produtos" description="Clique em um produto para visualizar todos os seus dados." icon={Package}>
-      <QuickCreateDialog label="Novo produto" defaults={{ tipo: '', unidade: 'metro', unidadeMinimo: 'unidade', status: 'ativo', minimo: 0, codigoAutomatico: true }} fields={[
+      <QuickCreateDialog label="Novo produto" defaults={{ tipo: '', unidade: 'metro', status: 'ativo', minimo: 0, codigoAutomatico: true }} fields={[
         { name: 'nome', label: 'Nome', required: true, placeholder: 'Ex: Malha PV 67/33 Branca' },
         { name: 'codigo', label: 'Código interno', type: 'uniqueCode', required: true, placeholder: 'MP-TEC-010' },
         { name: 'descricao', label: 'Descrição', type: 'textarea', placeholder: 'Descrição técnica...' },
         { name: 'tipo', label: 'Tipo', type: 'select', required: true, options: [{ value: 'materia_prima', label: 'Matéria-prima' }, { value: 'produto_acabado', label: 'Produto acabado' }] },
-        { name: 'insumos', label: 'Matérias-primas por unidade', type: 'recipe', options: materiasPrimas.map(item => ({ value: item.id, label: `${item.codigo} · ${item.nome}` })), required: true, showWhen: f => f.tipo === 'produto_acabado', hint: 'Informe primeiro quais insumos são consumidos para fabricar uma unidade.' },
-        { name: 'unidade', label: 'Unidade de medida', type: 'select', options: [{ value: 'metro', label: 'Metro' }, { value: 'unidade', label: 'Unidade' }, { value: 'kg', label: 'Quilograma' }, { value: 'outros', label: 'Outros' }], showWhen: f => Boolean(f.tipo) },
+        { name: 'insumos', label: 'Matérias-primas por unidade', type: 'recipe', options: materiasPrimas.map(item => ({ value: item.id, label: `${item.codigo} · ${item.nome} (${item.unidade})`, unidade: item.unidade })), required: true, showWhen: f => f.tipo === 'produto_acabado', hint: 'Informe primeiro quais insumos são consumidos para fabricar uma unidade.' },
+        { name: 'unidade', label: 'Unidade de medida', type: 'select', options: [{ value: 'metro', label: 'Metro' }, { value: 'unidade', label: 'Unidade' }, { value: 'kg', label: 'Quilograma' }, { value: 'outros', label: 'Outros' }], showWhen: f => f.tipo === 'materia_prima' },
         { name: 'categoriaId', label: 'Categoria', type: 'select', options: categorias.map(item => ({ value: item.id, label: item.nome })), required: true, showWhen: f => f.tipo === 'produto_acabado' },
         { name: 'corIds', label: 'Cores (opcional)', type: 'multiselect', options: cores.filter(item=>item.status==='ativo').map(item => ({ value: item.id, label: item.nome })), showWhen: f => Boolean(f.tipo) },
         { name: 'tamanhoIds', label: 'Tamanhos (opcional)', type: 'multiselect', options: tamanhos.map(item => ({ value: item.id, label: item.nome })), showWhen: f => Boolean(f.tipo) },
-        { name: 'unidadeMinimo', label: 'Unidade da quantidade mínima', type: 'select', required: true, options: [{ value: 'unidade', label: 'Quantidade unitária' }, { value: 'metro', label: 'Quantidade por metro' }], showWhen: f => Boolean(f.tipo) },
         { name: 'minimo', label: 'Quantidade mínima em estoque', type: 'number', required: true, placeholder: '0', showWhen: f => Boolean(f.tipo) },
         { name: 'status', label: 'Ativo', type: 'switch', showWhen: f => Boolean(f.tipo) },
-      ]} onCreate={v => create({ ...v, categoriaId: v.tipo === 'produto_acabado' ? v.categoriaId : null, status: v.status === false ? 'inativo' : 'ativo' })} />
+      ]} onCreate={v => create({ ...v, unidade: v.tipo === 'produto_acabado' ? 'unidade' : v.unidade, categoriaId: v.tipo === 'produto_acabado' ? v.categoriaId : null, status: v.status === false ? 'inativo' : 'ativo' })} />
     </PageHeader>
     <div className="mb-4 max-w-xs"><Label className="mb-1.5 block">Exibir produtos por tipo</Label><Select value={tipoVisivel} onValueChange={setTipoVisivel}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos</SelectItem><SelectItem value="materia_prima">Matérias-primas</SelectItem><SelectItem value="produto_acabado">Produtos acabados</SelectItem></SelectContent></Select></div>
     <DataTable data={produtosVisiveis} columns={columns} searchKeys={['nome']} onRowClick={produto => router.push(`/produtos/${produto.id}`)} />
@@ -92,11 +91,10 @@ function EditProductDialog({ product, categorias, cores, tamanhos, onClose, onSa
       <Field label="Código"><Input value={form.codigo || ''} onChange={event => upd('codigo', event.target.value)} required /></Field>
       <div className="md:col-span-2"><Field label="Descrição"><Textarea value={form.descricao || ''} onChange={event => upd('descricao', event.target.value)} /></Field></div>
       <Field label="Tipo"><Select value={form.tipo} onValueChange={value => upd('tipo', value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="materia_prima">Matéria-prima</SelectItem><SelectItem value="produto_acabado">Produto acabado</SelectItem></SelectContent></Select></Field>
-      <Field label="Unidade"><Select value={form.unidade || 'unidade'} onValueChange={value => upd('unidade', value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="metro">Metro</SelectItem><SelectItem value="unidade">Unidade</SelectItem><SelectItem value="kg">Quilograma</SelectItem><SelectItem value="outros">Outros</SelectItem></SelectContent></Select></Field>
+      {acabado ? <Field label="Unidade"><Input value="Unidade" disabled /></Field> : <Field label="Unidade"><Select value={form.unidade || 'unidade'} onValueChange={value => upd('unidade', value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="metro">Metro</SelectItem><SelectItem value="unidade">Unidade</SelectItem><SelectItem value="kg">Quilograma</SelectItem><SelectItem value="outros">Outros</SelectItem></SelectContent></Select></Field>}
       {acabado && <Field label="Categoria"><Select value={form.categoriaId} onValueChange={value => upd('categoriaId', value)}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{categorias.map(item => <SelectItem key={item.id} value={String(item.id)}>{item.nome}</SelectItem>)}</SelectContent></Select></Field>}
       <Multi label="Cores (opcional)" options={cores.filter(item => item.status === 'ativo' || form.corIds.map(String).includes(String(item.id)))} values={form.corIds} toggle={id => toggle('corIds', id)} />
       <Multi label="Tamanhos (opcional)" options={tamanhos} values={form.tamanhoIds} toggle={id => toggle('tamanhoIds', id)} />
-      <Field label="Unidade do mínimo"><Select value={form.unidadeMinimo} onValueChange={value => upd('unidadeMinimo', value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="unidade">Quantidade unitária</SelectItem><SelectItem value="metro">Quantidade por metro</SelectItem></SelectContent></Select></Field>
       <Field label="Quantidade mínima"><Input type="number" min="0" step="0.001" value={form.minimo || 0} onChange={event => upd('minimo', event.target.value)} /></Field>
       <DialogFooter className="md:col-span-2 pt-3"><Button type="button" variant="outline" onClick={onClose}>Cancelar</Button><Button disabled={saving}>{saving ? 'Salvando…' : 'Salvar alterações'}</Button></DialogFooter>
     </form>

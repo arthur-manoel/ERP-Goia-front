@@ -58,7 +58,7 @@ export default function QuickCreateDialog({ label = 'Novo cadastro', fields, onC
                     ? <div className="space-y-2 rounded-md border border-border p-3">
                         {(f[fld.name] || []).map((row, index) => <div key={index} className="grid grid-cols-[1fr_110px_36px] gap-2">
                           <Select value={String(row.produtoId || '')} onValueChange={v => upd(fld.name, (f[fld.name] || []).map((x,i) => i === index ? {...x, produtoId:v} : x))}><SelectTrigger><SelectValue placeholder="Matéria-prima" /></SelectTrigger><SelectContent>{(fld.options || []).map(o => <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>)}</SelectContent></Select>
-                          <Input type="number" min="0.0001" step="0.0001" value={row.quantidade || ''} onChange={e => upd(fld.name, (f[fld.name] || []).map((x,i) => i === index ? {...x, quantidade:e.target.value} : x))} placeholder="Qtd./un." />
+                          <Input type="number" min="0.01" step="0.01" value={row.quantidade || ''} onChange={e => upd(fld.name, (f[fld.name] || []).map((x,i) => i === index ? {...x, quantidade:e.target.value} : x))} placeholder="Qtd./un." />
                           <Button type="button" variant="ghost" onClick={() => upd(fld.name, (f[fld.name] || []).filter((_,i) => i !== index))}>×</Button>
                         </div>)}
                         <Button type="button" variant="outline" size="sm" onClick={() => upd(fld.name, [...(f[fld.name] || []), { produtoId:'', quantidade:'1' }])}>Adicionar matéria-prima</Button>

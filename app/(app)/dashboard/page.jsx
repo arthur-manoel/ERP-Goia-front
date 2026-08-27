@@ -5,6 +5,7 @@ import MetricCard from '@/components/common/metric-card'
 import StatusBadge from '@/components/common/status-badge'
 import { DollarSign, ShoppingBag, Factory, FileText, Boxes, AlertTriangle, RefreshCw, Plus, ArrowRight, Bell, FilePlus, PackagePlus, ShoppingCart, Search } from 'lucide-react'
 import { formatBRL } from '@/lib/mock-data'
+import { formatQuantity } from '@/lib/number-format'
 import { useEntity } from '@/lib/data-store'
 import { useAuth } from '@/lib/auth-context'
 import {
@@ -169,7 +170,7 @@ export default function DashboardPage() {
               <div key={op.id} className="flex items-center justify-between rounded-md border border-border p-3">
                 <div className="min-w-0">
                   <div className="text-sm font-medium truncate">{op.numero}</div>
-                  <div className="text-[11px] text-muted-foreground truncate">{op.produto} · {op.produzida}/{op.planejada}</div>
+                  <div className="text-[11px] text-muted-foreground truncate">{op.produto} · {formatQuantity(op.produzida)}/{formatQuantity(op.planejada)}</div>
                 </div>
                 <StatusBadge status={op.status} />
               </div>

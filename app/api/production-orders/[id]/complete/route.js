@@ -16,7 +16,8 @@ export async function POST(request,{params}){
   if(!local||!user)throw fail('Estoque de destino ou usuário inválido.')
   const[items]=await db.execute('SELECT id,id_produto,quantidade,quantidade_produzida FROM ordem_producao_item WHERE id_ordem_producao=? FOR UPDATE',[id])
   const input=new Map(body.itens.map(x=>[String(x.itemId),Number(x.quantidade)]));const produced=[]
-  for(const item of items){const qty=input.get(String(item.id))||0;const remaining=Number(item.quantidade)-Number(item.quantidade_produzida);if(qty<0||qty>remaining)throw fail('Uma quantidade produzida é maior que o saldo planejado.');if(qty>0)produced.push({item,qty})}
+  const[[lastStep]]=await db.execute('SELECT id_setor FROM ordem_producao_fluxo_setor WHERE id_ordem_producao=? ORDER BY ordem DESC LIMIT 1',[id]);if(!lastStep)throw fail('A ordem ainda não possui fluxo de setores.',409)
+  for(const item of items){const qty=input.get(String(item.id))||0;if(!Number.isInteger(qty))throw fail('Produto acabado só pode ser concluído em quantidades inteiras.');const[[arrived]]=await db.execute(`SELECT COALESCE(SUM(mi.quantidade),0) total FROM ordem_producao_movimentacao_item mi JOIN ordem_producao_movimentacao_setor m ON m.id=mi.id_movimentacao WHERE mi.id_ordem_producao_item=? AND m.id_setor_destino=? AND m.status='ENTREGUE'`,[item.id,lastStep.id_setor]);const eligible=Number(arrived.total)-Number(item.quantidade_produzida);if(qty<0||qty>eligible+0.000001)throw fail('Só é possível registrar peças que já foram entregues no último setor do fluxo.');if(qty>0)produced.push({item,qty})}
   if(!produced.length)throw fail('Informe ao menos uma quantidade produzida.')
   const rawNeeds=new Map()
   for(const row of produced){

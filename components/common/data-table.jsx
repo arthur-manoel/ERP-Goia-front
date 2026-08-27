@@ -96,4 +96,4 @@ export default function DataTable({ data = [], columns = [], searchable = true, 
   )
 }
 
-function formatCell(value){if(typeof value==='string'&&/^-?\d+\.\d{3,}$/.test(value)){const number=Number(value);return Number.isFinite(number)?number.toLocaleString('pt-BR',{maximumFractionDigits:3}):value}return value}
+function formatCell(value){if(typeof value==='string'&&/^-?\d+\.\d+$/.test(value)){const number=Number(value);return Number.isFinite(number)?number.toLocaleString('pt-BR',{maximumFractionDigits:2}):value}return value}

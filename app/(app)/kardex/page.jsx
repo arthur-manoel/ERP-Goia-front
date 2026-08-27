@@ -5,6 +5,7 @@ import DataTable from '@/components/common/data-table'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { formatBRL } from '@/lib/mock-data'
+import { formatQuantity } from '@/lib/number-format'
 import { useEntity } from '@/lib/data-store'
 import { useAuth } from '@/lib/auth-context'
 import { ScrollText, ArrowDownRight, ArrowUpRight, TrendingUp } from 'lucide-react'
@@ -52,10 +53,10 @@ export default function KardexPage() {
       return <span className={`inline-flex items-center gap-1 text-xs ${entrada ? 'text-emerald-400' : 'text-red-400'}`}>{entrada ? <ArrowDownRight className="h-3.5 w-3.5" /> : <ArrowUpRight className="h-3.5 w-3.5" />}{tipoLabel[r.tipo] || r.tipo}</span>
     }},
     { key: 'origem', label: 'Origem', render: (r) => <span className="font-mono text-xs">{r.origem}</span> },
-    { key: 'entrada', label: 'Entrada', cellClass: 'text-right', render: (r) => Number(r.entrada) > 0 ? <span className="text-emerald-400">+{r.entrada}</span> : '—' },
-    { key: 'saida', label: 'Saída', cellClass: 'text-right', render: (r) => Number(r.saida) > 0 ? <span className="text-red-400">-{r.saida}</span> : '—' },
-    { key: 'saldoAnterior', label: 'Saldo anterior', cellClass: 'text-right' },
-    { key: 'saldo', label: 'Saldo', cellClass: 'text-right font-medium' },
+    { key: 'entrada', label: 'Entrada', cellClass: 'text-right', render: (r) => Number(r.entrada) > 0 ? <span className="text-emerald-400">+{formatQuantity(r.entrada)}</span> : '—' },
+    { key: 'saida', label: 'Saída', cellClass: 'text-right', render: (r) => Number(r.saida) > 0 ? <span className="text-red-400">-{formatQuantity(r.saida)}</span> : '—' },
+    { key: 'saldoAnterior', label: 'Saldo anterior', cellClass: 'text-right', render: r => formatQuantity(r.saldoAnterior) },
+    { key: 'saldo', label: 'Saldo', cellClass: 'text-right font-medium', render: r => formatQuantity(r.saldo) },
     { key: 'valorTotal', label: 'Valor', cellClass: 'text-right', render: (r) => formatBRL(r.valorTotal) },
   ]
 
@@ -73,17 +74,17 @@ export default function KardexPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
         <Card className="bg-card border-border"><CardContent className="p-4">
           <div className="text-xs uppercase text-muted-foreground">Entradas (período)</div>
-          <div className="text-2xl font-semibold mt-1 text-emerald-400">+{entradas}</div>
+          <div className="text-2xl font-semibold mt-1 text-emerald-400">+{formatQuantity(entradas)}</div>
           <div className="text-[11px] text-muted-foreground">Somatório das entradas de estoque</div>
         </CardContent></Card>
         <Card className="bg-card border-border"><CardContent className="p-4">
           <div className="text-xs uppercase text-muted-foreground">Saídas (período)</div>
-          <div className="text-2xl font-semibold mt-1 text-red-400">-{saidas}</div>
+          <div className="text-2xl font-semibold mt-1 text-red-400">-{formatQuantity(saidas)}</div>
           <div className="text-[11px] text-muted-foreground">Consumo + vendas + ajustes</div>
         </CardContent></Card>
         <Card className="bg-card border-border"><CardContent className="p-4">
           <div className="text-xs uppercase text-muted-foreground">Saldo atual</div>
-          <div className="text-2xl font-semibold mt-1">{saldoAtual}</div>
+          <div className="text-2xl font-semibold mt-1">{formatQuantity(saldoAtual)}</div>
           <div className="text-[11px] text-muted-foreground">Última posição registrada</div>
         </CardContent></Card>
       </div>

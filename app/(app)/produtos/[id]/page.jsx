@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 const tipoNome = tipo => tipo === 'materia_prima' ? 'Matéria-prima' : 'Produto acabado'
 const simNao = valor => valor ? 'Sim' : 'Não'
-const quantidade = valor => Number(valor || 0).toLocaleString('pt-BR', { maximumFractionDigits: 4 })
+const quantidade = valor => Number(valor || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
 
 export default function DetalheProduto() {
   const { id } = useParams()
@@ -73,9 +73,9 @@ export default function DetalheProduto() {
 
     <Card><CardHeader><CardTitle className="text-base">Matérias-primas utilizadas na confecção</CardTitle></CardHeader><CardContent>
       {produto.tipo === 'materia_prima' ? <p className="py-6 text-center text-muted-foreground">Este produto é uma matéria-prima e não possui composição de fabricação.</p> :
-      <Table><TableHeader><TableRow><TableHead>Código</TableHead><TableHead>Matéria-prima</TableHead><TableHead className="text-right">Quantidade por unidade</TableHead><TableHead className="text-right">Perda</TableHead><TableHead className="text-right">Consumo com perda</TableHead><TableHead className="text-right">Custo unitário</TableHead></TableRow></TableHeader><TableBody>
+      <Table><TableHeader><TableRow><TableHead>Código</TableHead><TableHead>Matéria-prima</TableHead><TableHead className="text-right">Quantidade por unidade</TableHead><TableHead className="text-right">Perda</TableHead><TableHead className="text-right">Consumo com perda</TableHead><TableHead className="text-right">Custo da quantidade usada</TableHead></TableRow></TableHeader><TableBody>
         {!produto.insumos.length && <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Nenhuma matéria-prima cadastrada na ficha técnica.</TableCell></TableRow>}
-        {produto.insumos.map(item => <TableRow key={item.produtoId}><TableCell className="font-mono text-xs">{item.codigo}</TableCell><TableCell className="font-medium">{item.nome}</TableCell><TableCell className="text-right">{quantidade(item.quantidade)} {item.unidade}</TableCell><TableCell className="text-right">{quantidade(item.perdaPercentual)}%</TableCell><TableCell className="text-right">{quantidade(item.quantidadeComPerda)} {item.unidade}</TableCell><TableCell className="text-right">{formatBRL(item.valorUnitario)}</TableCell></TableRow>)}
+        {produto.insumos.map(item => <TableRow key={item.produtoId}><TableCell className="font-mono text-xs">{item.codigo}</TableCell><TableCell className="font-medium">{item.nome}</TableCell><TableCell className="text-right">{quantidade(item.quantidade)} {item.unidade}</TableCell><TableCell className="text-right">{quantidade(item.perdaPercentual)}%</TableCell><TableCell className="text-right">{quantidade(item.quantidadeComPerda)} {item.unidade}</TableCell><TableCell className="text-right">{formatBRL(Number(item.quantidadeComPerda) * Number(item.valorUnitario))}</TableCell></TableRow>)}
       </TableBody></Table>}
     </CardContent></Card>
   </div>

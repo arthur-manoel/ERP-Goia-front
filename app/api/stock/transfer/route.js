@@ -10,6 +10,11 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Dados da transferência são inválidos.' }, { status: 400 })
     }
     await connection.beginTransaction()
+    const [[product]] = await connection.execute('SELECT permite_producao,permite_venda FROM produtos WHERE id=?', [produtoId])
+    if (!product) throw Object.assign(new Error('Produto inválido.'), { status: 400 })
+    if ((product.permite_producao || product.permite_venda) && !Number.isInteger(qty)) {
+      throw Object.assign(new Error('Produtos acabados devem ser movimentados em quantidades inteiras.'), { status: 400 })
+    }
     const [locations] = await connection.execute('SELECT id FROM locais_estoque WHERE id_empresa=? AND id IN (?,?) AND status=\'ATIVO\'', [empresaId, origemId, destinoId])
     if (locations.length !== 2) throw Object.assign(new Error('Estoque de origem ou destino inválido.'), { status: 400 })
     const [sourceRows] = await connection.execute('SELECT id,quantidade,quantidade_reservada FROM estoque WHERE id_empresa=? AND id_local_estoque=? AND id_produto=? FOR UPDATE', [empresaId, origemId, produtoId])

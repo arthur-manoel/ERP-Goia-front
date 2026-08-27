@@ -144,7 +144,7 @@ export default function DetalheEmpresa() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setAskDelete(false)}>Cancelar</Button>
             <Button disabled={confirmText !== expected}
-              onClick={() => { remove(e.id); toast.success(`${e.nomeFantasia} excluída.`); router.push('/admin/empresas') }}
+              onClick={async () => { try { await remove(e.id); toast.success(`${e.nomeFantasia} excluída.`); router.push('/admin/empresas') } catch (error) { toast.error(error.message || 'Esta empresa possui registros vinculados e não pode ser excluída.') } }}
               className="bg-red-500 hover:bg-red-600 text-white disabled:opacity-40">
               Excluir permanentemente
             </Button>

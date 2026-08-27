@@ -15,6 +15,7 @@ import { useAuth } from '@/lib/auth-context'
 import { formatBRL } from '@/lib/mock-data'
 import { ArrowLeft, FileText, PackagePlus, Save, Trash2, Truck } from 'lucide-react'
 import { toast } from 'sonner'
+import { formatQuantity } from '@/lib/number-format'
 
 const emptyItem = { productId: '', quantidade: 1, valorUnitario: 0 }
 
@@ -99,7 +100,7 @@ export default function NotaFiscalDetalhePage() {
 
     {!bloqueada && <Card className="bg-card border-border"><CardHeader><CardTitle className="text-base flex items-center gap-2"><PackagePlus className="h-4 w-4" />Adicionar produto comprado</CardTitle></CardHeader><CardContent className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <div className="md:col-span-2"><Field label="Matéria-prima"><Select value={item.productId} onValueChange={v => setItem(p => ({ ...p, productId: v }))}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{materiasPrimas.map(p => <SelectItem key={p.id} value={p.id}>{p.codigo} · {p.nome}</SelectItem>)}</SelectContent></Select></Field></div>
+        <div className="md:col-span-2"><Field label="Matéria-prima"><Select value={item.productId} onValueChange={v => setItem(p => ({ ...p, productId: v }))}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{materiasPrimas.map(p => <SelectItem key={p.id} value={p.id}>{p.codigo} · {p.nome} ({p.unidade})</SelectItem>)}</SelectContent></Select></Field></div>
         <Field label="Quantidade"><Input type="number" min="0.01" step="0.01" value={item.quantidade} onChange={e => setItem(p => ({ ...p, quantidade: e.target.value }))} /></Field>
         <Field label="Valor unitário"><CurrencyInput value={item.valorUnitario} onChange={e => setItem(p => ({ ...p, valorUnitario: e.target.value }))} /></Field>
       </div>
@@ -109,7 +110,7 @@ export default function NotaFiscalDetalhePage() {
     <Card className="bg-card border-border"><CardHeader><CardTitle className="text-base">Produtos da nota ({form.produtos.length})</CardTitle></CardHeader><CardContent>
       <Table><TableHeader><TableRow><TableHead>Código</TableHead><TableHead>Produto</TableHead><TableHead>Origem</TableHead><TableHead className="text-right">Quantidade</TableHead><TableHead className="text-right">Valor unit.</TableHead><TableHead className="text-right">Subtotal</TableHead><TableHead /></TableRow></TableHeader><TableBody>
         {!form.produtos.length && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhum produto adicionado.</TableCell></TableRow>}
-        {form.produtos.map((p, i) => <TableRow key={`${p.productId || p.codigo}-${i}`}><TableCell className="font-mono text-xs">{p.codigo}</TableCell><TableCell>{p.nome}</TableCell><TableCell className="text-xs">{p.novoProduto ? 'Novo cadastro' : 'Cadastrado'}</TableCell><TableCell className="text-right">{p.quantidade} {p.unidade}</TableCell><TableCell className="text-right">{formatBRL(Number(p.valorUnitario))}</TableCell><TableCell className="text-right font-medium">{formatBRL(Number(p.quantidade) * Number(p.valorUnitario))}</TableCell><TableCell className="text-right">{!bloqueada && <Button variant="ghost" size="icon" className="text-red-400" onClick={() => removerItem(i)}><Trash2 className="h-4 w-4" /></Button>}</TableCell></TableRow>)}
+        {form.produtos.map((p, i) => <TableRow key={`${p.productId || p.codigo}-${i}`}><TableCell className="font-mono text-xs">{p.codigo}</TableCell><TableCell>{p.nome}</TableCell><TableCell className="text-xs">{p.novoProduto ? 'Novo cadastro' : 'Cadastrado'}</TableCell><TableCell className="text-right">{formatQuantity(p.quantidade)} {p.unidade}</TableCell><TableCell className="text-right">{formatBRL(Number(p.valorUnitario))}</TableCell><TableCell className="text-right font-medium">{formatBRL(Number(p.quantidade) * Number(p.valorUnitario))}</TableCell><TableCell className="text-right">{!bloqueada && <Button variant="ghost" size="icon" className="text-red-400" onClick={() => removerItem(i)}><Trash2 className="h-4 w-4" /></Button>}</TableCell></TableRow>)}
       </TableBody></Table>
       <div className="flex justify-end pt-4 text-lg font-semibold">Total: {formatBRL(form.valorTotal || 0)}</div>
     </CardContent></Card>

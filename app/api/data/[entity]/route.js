@@ -159,11 +159,12 @@ async function createEntity(connection, entity, body, empresaId) {
     let tipoId = await firstId(connection, 'SELECT id FROM tipos_produto WHERE nome=? LIMIT 1', [body.tipo === 'produto_acabado' ? 'Produto acabado' : 'Matéria-prima'])
     if (!tipoId) { const [tipo] = await connection.execute('INSERT INTO tipos_produto (nome) VALUES (?)', [body.tipo === 'produto_acabado' ? 'Produto acabado' : 'Matéria-prima']); tipoId = tipo.insertId }
     const categoryId = body.tipo === 'produto_acabado' ? (body.categoriaId || null) : null
-    const [product] = await connection.execute(`INSERT INTO produtos (id_tipo_produto,id_categoria,nome,codigo,descricao,unidade,controla_estoque,permite_venda,permite_compra,permite_producao,status) VALUES (?,?,?,?,?,?,?,?,?,?,?)`, [tipoId, categoryId, body.nome, body.codigo, body.descricao || null, body.unidade || 'UN', 1, body.tipo === 'produto_acabado' ? 1 : 0, body.tipo === 'materia_prima' ? 1 : 0, body.tipo === 'produto_acabado' ? 1 : 0, upper(body.status)])
+    const unidadeProduto = body.tipo === 'produto_acabado' ? 'unidade' : String(body.unidade || 'unidade').toLowerCase()
+    const [product] = await connection.execute(`INSERT INTO produtos (id_tipo_produto,id_categoria,nome,codigo,descricao,unidade,controla_estoque,permite_venda,permite_compra,permite_producao,status) VALUES (?,?,?,?,?,?,?,?,?,?,?)`, [tipoId, categoryId, body.nome, body.codigo, body.descricao || null, unidadeProduto, 1, body.tipo === 'produto_acabado' ? 1 : 0, body.tipo === 'materia_prima' ? 1 : 0, body.tipo === 'produto_acabado' ? 1 : 0, upper(body.status)])
     const corIds = Array.isArray(body.corIds) ? body.corIds : (body.corId ? [body.corId] : [])
     const tamanhoIds = Array.isArray(body.tamanhoIds) ? body.tamanhoIds : (body.tamanhoId ? [body.tamanhoId] : [])
     for(const corId of corIds){const cor=await firstId(connection,"SELECT id FROM cores WHERE id=? AND id_empresa=? AND status='ATIVA'",[corId,empresaId]);if(!cor)throw Object.assign(new Error('Uma das cores selecionadas está inativa ou não pertence à empresa.'),{status:400})}
-    ;[result] = await connection.execute('INSERT INTO produto_empresa (id_empresa,id_produto,id_cor,id_tamanho,codigo_interno,estoque_minimo,unidade_estoque_minimo,status) VALUES (?,?,?,?,?,?,?,?)', [empresaId, product.insertId, corIds[0] || null, tamanhoIds[0] || null, body.codigo, Number(body.minimo || 0), upper(body.unidadeMinimo || 'UNIDADE'), upper(body.status)])
+    ;[result] = await connection.execute('INSERT INTO produto_empresa (id_empresa,id_produto,id_cor,id_tamanho,codigo_interno,estoque_minimo,unidade_estoque_minimo,status) VALUES (?,?,?,?,?,?,?,?)', [empresaId, product.insertId, corIds[0] || null, tamanhoIds[0] || null, body.codigo, Number(body.minimo || 0), unidadeProduto, upper(body.status)])
     for (const corId of (corIds.length ? corIds : [null])) for (const tamanhoId of (tamanhoIds.length ? tamanhoIds : [null])) if (corId || tamanhoId) await connection.execute('INSERT INTO produto_variacoes (id_empresa,id_produto,id_cor,id_tamanho,status) VALUES (?,?,?,?,?)', [empresaId, product.insertId, corId, tamanhoId, upper(body.status)])
     if (body.tipo === 'produto_acabado') {
       if (!Array.isArray(body.insumos) || !body.insumos.length) throw Object.assign(new Error('Informe ao menos uma matéria-prima para confeccionar o produto.'), { status: 400 })
@@ -178,6 +179,7 @@ async function createEntity(connection, entity, body, empresaId) {
         if (!component.affectedRows) throw Object.assign(new Error('Uma das matérias-primas selecionadas é inválida.'), { status: 400 })
       }
     }
+    result = { insertId: product.insertId }
   } else if (entity === 'requisicoes') {
     if (body.numeroAutomatico !== false) body.numero = await automaticCode(connection, entity, empresaId)
     const localId = await firstId(connection, 'SELECT id FROM locais_estoque WHERE id_empresa=? AND nome=?', [empresaId, body.estoque])
@@ -230,13 +232,15 @@ async function createEntity(connection, entity, body, empresaId) {
         VALUES (?,?,?,?,?,?,?,?,?,0,?,?,?)`, [result.insertId, index + 1, item.produto.id, item.produto.codigo, item.produto.nome, item.quantidade, item.produto.unidade, item.valorUnitario, item.valorTotal, item.produto.corId, item.produto.tamanhoId, item.tipoValor.toUpperCase()])
     }
   } else if (entity === 'ops') {
+    const plannedQuantity = Number(body.planejada || 1)
+    if (!Number.isInteger(plannedQuantity) || plannedQuantity <= 0) throw Object.assign(new Error('A quantidade planejada da OP deve ser um número inteiro de peças.'), { status: 400 })
     if (body.numeroAutomatico !== false) body.numero = await automaticCode(connection, entity, empresaId)
     const usuarioId = await firstId(connection, 'SELECT id_usuario id FROM usuario_empresa WHERE id_empresa=? AND status=\'ATIVO\' LIMIT 1', [empresaId])
     const localId = await firstId(connection, 'SELECT id FROM locais_estoque WHERE id_empresa=? AND nome=?', [empresaId, body.estoque])
     const [op] = await connection.execute('INSERT INTO ordem_producao (id_empresa,id_local_estoque,id_usuario,numero,status,data_inicio,data_previsao) VALUES (?,?,?,?,?,?,?)', [empresaId, localId, usuarioId, body.numero, upper(body.status, 'ABERTA'), body.abertura || new Date(), body.prazo || null])
     const productId = await firstId(connection, 'SELECT p.id FROM produtos p JOIN produto_empresa pe ON pe.id_produto=p.id WHERE pe.id_empresa=? AND p.nome=?', [empresaId, body.produto])
     const colorId = body.cor ? await firstId(connection, 'SELECT id FROM cores WHERE id_empresa=? AND nome=?', [empresaId, body.cor]) : null
-    ;[result] = await connection.execute('INSERT INTO ordem_producao_item (id_ordem_producao,id_produto,id_cor,quantidade,quantidade_produzida) VALUES (?,?,?,?,0)', [op.insertId, productId, colorId, Number(body.planejada || 1)])
+    ;[result] = await connection.execute('INSERT INTO ordem_producao_item (id_ordem_producao,id_produto,id_cor,quantidade,quantidade_produzida) VALUES (?,?,?,?,0)', [op.insertId, productId, colorId, plannedQuantity])
     result.insertId = op.insertId
   } else if (entity === 'vendas') {
     if (body.numeroAutomatico !== false) body.numero = await automaticCode(connection, entity, empresaId)
@@ -299,8 +303,9 @@ export async function PUT(request, { params }) {
       const tamanhoIds = Array.isArray(body.tamanhoIds) ? body.tamanhoIds : []
       const acabado = body.tipo === 'produto_acabado'
       for(const corId of corIds){const allowed=await firstId(connection,`SELECT c.id FROM cores c WHERE c.id=? AND c.id_empresa=? AND (c.status='ATIVA' OR EXISTS (SELECT 1 FROM produto_variacoes pv WHERE pv.id_empresa=c.id_empresa AND pv.id_produto=? AND pv.id_cor=c.id))`,[corId,body.empresaId,body.id]);if(!allowed)throw Object.assign(new Error('Uma cor inativa não pode ser adicionada a este produto.'),{status:400})}
-      await connection.execute(`UPDATE produtos SET id_categoria=?,nome=?,codigo=?,descricao=?,unidade=?,permite_venda=?,permite_compra=?,permite_producao=?,status=? WHERE id=?`, [acabado ? body.categoriaId || null : null, body.nome, body.codigo, body.descricao || null, body.unidade || 'UN', acabado ? 1 : 0, acabado ? 0 : 1, acabado ? 1 : 0, upper(body.status), body.id])
-      await connection.execute(`UPDATE produto_empresa SET id_cor=?,id_tamanho=?,codigo_interno=?,estoque_minimo=?,unidade_estoque_minimo=?,status=? WHERE id_empresa=? AND id_produto=?`, [corIds[0] || null, tamanhoIds[0] || null, body.codigo, Number(body.minimo || 0), upper(body.unidadeMinimo || 'UNIDADE'), upper(body.status), body.empresaId, body.id])
+      const unidadeProduto = acabado ? 'unidade' : String(body.unidade || 'unidade').toLowerCase()
+      await connection.execute(`UPDATE produtos SET id_categoria=?,nome=?,codigo=?,descricao=?,unidade=?,permite_venda=?,permite_compra=?,permite_producao=?,status=? WHERE id=?`, [acabado ? body.categoriaId || null : null, body.nome, body.codigo, body.descricao || null, unidadeProduto, acabado ? 1 : 0, acabado ? 0 : 1, acabado ? 1 : 0, upper(body.status), body.id])
+      await connection.execute(`UPDATE produto_empresa SET id_cor=?,id_tamanho=?,codigo_interno=?,estoque_minimo=?,unidade_estoque_minimo=?,status=? WHERE id_empresa=? AND id_produto=?`, [corIds[0] || null, tamanhoIds[0] || null, body.codigo, Number(body.minimo || 0), unidadeProduto, upper(body.status), body.empresaId, body.id])
       await connection.execute('DELETE FROM produto_variacoes WHERE id_empresa=? AND id_produto=?', [body.empresaId, body.id])
       for (const corId of (corIds.length ? corIds : [null])) for (const tamanhoId of (tamanhoIds.length ? tamanhoIds : [null])) if (corId || tamanhoId) await connection.execute('INSERT INTO produto_variacoes (id_empresa,id_produto,id_cor,id_tamanho,status) VALUES (?,?,?,?,\'ATIVO\')', [body.empresaId, body.id, corId, tamanhoId])
       await connection.commit()

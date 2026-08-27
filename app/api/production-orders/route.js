@@ -7,23 +7,23 @@ export async function POST(request) {
   const connection = await getDb().getConnection()
   try {
     const body = await request.json()
-    if (!/^\d+$/.test(String(body.empresaId || '')) || (body.numeroAutomatico === false && !body.numero?.trim()) || !/^\d+$/.test(String(body.setorId || ''))) return NextResponse.json({ error: 'Número da OP e setor responsável são obrigatórios.' }, { status: 400 })
+    if (!/^\d+$/.test(String(body.empresaId || '')) || (body.numeroAutomatico === false && !body.numero?.trim()) || (!body.rascunho && !/^\d+$/.test(String(body.setorId || '')))) return NextResponse.json({ error: 'Os dados da ordem são inválidos.' }, { status: 400 })
     await connection.beginTransaction()
     if (body.numeroAutomatico !== false) {
       await connection.execute(`INSERT INTO sequencias_automaticas (id_empresa,entidade,ultimo_numero) VALUES (?,'ops',LAST_INSERT_ID(1)) ON DUPLICATE KEY UPDATE ultimo_numero=LAST_INSERT_ID(ultimo_numero+1)`, [body.empresaId])
       const [[sequence]] = await connection.query('SELECT LAST_INSERT_ID() numero')
       body.numero = `OP-${String(sequence.numero).padStart(6,'0')}`
     }
-    const [sectors] = await connection.execute('SELECT id FROM setores WHERE id=? AND id_empresa=? AND status=\'ATIVO\'', [body.setorId, body.empresaId])
-    if (!sectors[0]) throw Object.assign(new Error('Setor responsável inválido.'), { status: 400 })
+    let setorId = null
+    if (body.setorId) { const [sectors] = await connection.execute('SELECT id FROM setores WHERE id=? AND id_empresa=? AND status=\'ATIVO\'', [body.setorId, body.empresaId]); if (!sectors[0]) throw Object.assign(new Error('Setor responsável inválido.'), { status: 400 }); setorId=sectors[0].id }
     const [users] = await connection.execute('SELECT id_usuario id FROM usuario_empresa WHERE id_empresa=? AND status=\'ATIVO\' ORDER BY (id_usuario=?) DESC LIMIT 1', [body.empresaId, body.usuarioId || 0])
     if (!users[0]) throw Object.assign(new Error('Nenhum usuário ativo encontrado.'), { status: 400 })
     const [result] = await connection.execute(`INSERT INTO ordem_producao
       (id_empresa,id_usuario,id_setor,numero,prioridade,quantidade_planejada,status,data_inicio,data_previsao)
-      VALUES (?,?,?,?,?,?,?,?,?)`, [body.empresaId, users[0].id, body.setorId, body.numero.trim(), String(body.prioridade || 'NORMAL').toUpperCase(), 0, statusMap[String(body.status || '').toLowerCase()] || 'PLANEJADA', body.dataAbertura || new Date(), body.prazoConclusao || null])
-    await connection.execute(`INSERT INTO ordem_producao_movimentacao_setor
+      VALUES (?,?,?,?,?,?,?,?,?)`, [body.empresaId, users[0].id, setorId, body.numero.trim(), String(body.prioridade || 'NORMAL').toUpperCase(), 0, statusMap[String(body.status || '').toLowerCase()] || 'PLANEJADA', body.dataAbertura || new Date(), body.prazoConclusao || null])
+    if(setorId) await connection.execute(`INSERT INTO ordem_producao_movimentacao_setor
       (id_ordem_producao,id_setor_origem,id_setor_destino,id_usuario_envio,id_usuario_recebimento,status,data_envio,data_recebimento,observacao)
-      VALUES (?,NULL,?,?,?,'ENTREGUE',NOW(),NOW(),'Setor inicial da ordem')`, [result.insertId, body.setorId, users[0].id, users[0].id])
+      VALUES (?,NULL,?,?,?,'ENTREGUE',NOW(),NOW(),'Setor inicial da ordem')`, [result.insertId, setorId, users[0].id, users[0].id])
     await connection.commit()
     return NextResponse.json({ id: String(result.insertId) }, { status: 201 })
   } catch (error) {

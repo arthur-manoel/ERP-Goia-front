@@ -11,10 +11,12 @@ export async function POST(request, { params }) {
     if (!order) throw Object.assign(new Error('Ordem de produção inválida.'), { status: 404 })
     const total = items.reduce((sum, item) => sum + Number(item.quantidade || 0), 0)
     if (!(total > 0)) throw Object.assign(new Error('Informe ao menos uma peça para a ordem de produção.'), { status: 400 })
+    if (new Set(items.map(item => String(item.produtoId))).size !== 1) throw Object.assign(new Error('Cada ordem de produção pode possuir somente um produto acabado.'), { status: 400 })
     await connection.execute('DELETE FROM ordem_producao_item WHERE id_ordem_producao=?', [id])
     for (const item of items) {
       const qty = Number(item.quantidade)
       if (!(qty > 0)) continue
+      if (!Number.isInteger(qty)) throw Object.assign(new Error('A quantidade de produto acabado deve ser um número inteiro.'), { status: 400 })
       const [[product]] = await connection.execute(`SELECT p.id FROM produtos p JOIN produto_empresa pe ON pe.id_produto=p.id
         WHERE p.id=? AND pe.id_empresa=? AND pe.status='ATIVO' AND (p.permite_producao=1 OR p.permite_venda=1)`, [item.produtoId, empresaId])
       if (!product) throw Object.assign(new Error('A grade contém um produto acabado inválido.'), { status: 400 })
